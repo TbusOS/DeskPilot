@@ -5,50 +5,48 @@
 <h1 align="center">DeskPilot</h1>
 
 <p align="center">
-  <strong>AI-Powered Desktop Automation Testing Framework</strong>
+  <strong>AI 驱动的桌面自动化测试框架</strong>
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/deskpilot"><img src="https://img.shields.io/npm/v/deskpilot.svg" alt="npm version"></a>
-  <a href="https://github.com/TbusOS/DeskPilot/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/TbusOS/DeskPilot/actions"><img src="https://github.com/TbusOS/DeskPilot/workflows/CI/badge.svg" alt="CI Status"></a>
-  <br>
-  English | <a href="./README.zh-CN.md">中文文档</a>
+  <a href="https://www.npmjs.com/package/deskpilot"><img src="https://img.shields.io/npm/v/deskpilot.svg" alt="npm 版本"></a>
+  <a href="https://github.com/TbusOS/DeskPilot/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="许可证"></a>
+  <a href="./README.md">English</a> | 中文
 </p>
 
 <p align="center">
-  Combining deterministic DOM testing with VLM-powered visual AI fallback for Tauri/Electron apps
+  为 Tauri/Electron 应用打造的混合测试方案：确定性 DOM 测试 + VLM 视觉 AI 智能回退
 </p>
 
 ---
 
-## Features
+## 特性
 
-- **Hybrid Testing Mode** - Deterministic testing first, VLM fallback when needed
-- **Multi-VLM Support** - Anthropic Claude, OpenAI GPT-4V, Volcengine Doubao, Custom
-- **Agent Mode** - Auto-detects Cursor IDE, Claude Code CLI, VSCode Claude plugin
-- **Accessibility Tree** - Full a11y tree traversal, WCAG validation, screen reader simulation
-- **Visual Regression** - Screenshot comparison with baseline management
-- **Interaction Testing** - Keyboard navigation, drag & drop, responsive testing
-- **Cost Tracking** - Monitor and control VLM API costs
-- **Cross-Platform** - macOS, Linux, Windows support
-- **Tauri Native** - First-class support for Tauri WebView testing
+- **混合测试模式** - 确定性优先，VLM 智能回退
+- **多 VLM 支持** - Anthropic Claude、OpenAI GPT-4V、豆包、自定义
+- **Agent 模式** - 自动检测 Cursor IDE、Claude Code CLI、VSCode Claude 插件
+- **无障碍树** - 完整 a11y 树遍历、WCAG 验证、屏幕阅读器模拟
+- **视觉回归** - 截图对比与基线管理
+- **交互测试** - 键盘导航、拖放、响应式测试
+- **成本追踪** - 监控 VLM API 使用费用
+- **跨平台** - macOS、Linux、Windows 全支持
+- **Tauri 原生** - 一流的 Tauri WebView 测试支持
 
-## Installation
+## 安装
 
 ```bash
 npm install deskpilot
 ```
 
-Optional dependencies:
+可选依赖：
 
 ```bash
-npm install @nut-tree/nut-js  # Native mouse/keyboard control
+npm install @nut-tree/nut-js  # 原生鼠标/键盘控制
 ```
 
-## Quick Start
+## 快速开始
 
-### Deterministic Mode (Free, Fast)
+### 确定性模式（免费、快速）
 
 ```typescript
 import { DesktopTest, TestMode } from 'deskpilot';
@@ -60,17 +58,17 @@ const test = new DesktopTest({
 
 await test.connect();
 
-// Use refs from snapshot
+// 使用快照中的 refs
 const snapshot = await test.snapshot({ interactive: true });
-await test.click('@e2');  // Click by ref
+await test.click('@e2');  // 通过 ref 点击
 
-// Use CSS selectors
+// 使用 CSS 选择器
 await test.click('#submit-btn');
 
 await test.disconnect();
 ```
 
-### Hybrid Mode (Deterministic + AI Fallback)
+### 混合模式（确定性 + AI 回退）
 
 ```typescript
 import { DesktopTest, TestMode } from 'deskpilot';
@@ -87,43 +85,43 @@ const test = new DesktopTest({
 
 await test.connect();
 
-// Tries deterministic first, VLM fallback if not found
-await test.click('@e2');           // Deterministic (fast)
-await test.clickText('Open File'); // VLM fallback if needed
+// 先尝试确定性方法，找不到时使用 VLM 回退
+await test.click('@e2');           // 确定性（快速）
+await test.clickText('打开文件');   // VLM 回退（智能）
 
-// Full AI control
-await test.ai('Fill the login form with test credentials');
+// 完全 AI 控制
+await test.ai('用测试账号填写登录表单');
 
-// Check costs
+// 查看费用
 console.log(test.getCostSummary());
 // { totalCost: 0.0234, totalCalls: 3, ... }
 ```
 
-### Agent Mode (No API Key Needed)
+### Agent 模式（无需 API Key）
 
 ```typescript
-// Works automatically in Cursor IDE, Claude Code CLI, VSCode Claude
+// 在 Cursor IDE、Claude Code CLI、VSCode Claude 中自动生效
 const test = new DesktopTest({
   mode: TestMode.HYBRID,
   cdp: { endpoint: 9222 },
-  vlm: { provider: 'agent' }, // Auto-detect environment
+  vlm: { provider: 'agent' }, // 自动检测环境
 });
 ```
 
-## Test Suite Example
+## 测试套件示例
 
 ```typescript
 import { TestRunner, TestMode, Assertions } from 'deskpilot';
 
 const tests = [
   {
-    name: 'Page loads correctly',
+    name: '页面正确加载',
     fn: async ({ test, assert, log }) => {
       const snapshot = await test.snapshot();
       assert.greaterThan(Object.keys(snapshot.refs).length, 0);
       
-      // Prevent "0 files" display bug
-      Assertions.valueNotZero(fileCount, 'File count should not be zero');
+      // 防止 "0 文件" 显示 Bug
+      Assertions.valueNotZero(fileCount, '文件数不能为零');
     },
   },
 ];
@@ -135,36 +133,36 @@ const runner = new TestRunner({
   },
 });
 
-await runner.runAll(tests, 'My Test Suite');
+await runner.runAll(tests, '测试套件');
 ```
 
-## Accessibility Testing
+## 无障碍测试
 
 ```typescript
-import { createA11yTester, createAccessibilityTreeManager } from 'deskpilot';
+import { createA11yTester } from 'deskpilot';
 
 const a11y = createA11yTester(test);
 
-// Run WCAG audit
+// 运行 WCAG 审计
 const result = await a11y.audit({ tags: ['wcag2a', 'wcag2aa'] });
-console.log(`Violations: ${result.violations.length}`);
+console.log(`违规数: ${result.violations.length}`);
 
-// Get accessibility tree
+// 获取无障碍树
 const tree = await a11y.tree.getTree();
-console.log(`Total nodes: ${tree.totalNodes}`);
-console.log(`Landmarks: ${tree.landmarkCount}`);
+console.log(`总节点: ${tree.totalNodes}`);
+console.log(`地标数: ${tree.landmarkCount}`);
 
-// Find by role
+// 按角色查找
 const buttons = await a11y.tree.findByRole('button');
 
-// Validate patterns
+// 验证 ARIA 模式
 const dialogIssues = await a11y.validatePattern('dialog');
 
-// Screen reader simulation
+// 屏幕阅读器模拟
 const readingOrder = await a11y.getReadingOrder();
 ```
 
-## Visual Regression Testing
+## 视觉回归测试
 
 ```typescript
 import { createVisualRegressionTester } from 'deskpilot';
@@ -172,87 +170,86 @@ import { createVisualRegressionTester } from 'deskpilot';
 const visual = createVisualRegressionTester(test, {
   baselineDir: './baselines',
   outputDir: './screenshots',
-  threshold: 0.01, // 1% tolerance
+  threshold: 0.01, // 1% 容差
 });
 
-const diff = await visual.compareScreenshot('main-page');
+const diff = await visual.compareScreenshot('主页面');
 if (!diff.match) {
-  console.log(`Visual diff: ${diff.diffPercentage}%`);
+  console.log(`视觉差异: ${diff.diffPercentage}%`);
 }
 ```
 
-## Interaction Testing
+## 交互测试
 
 ```typescript
 import { createInteractionTester, COMMON_VIEWPORTS } from 'deskpilot';
 
 const interaction = createInteractionTester(test);
 
-// Keyboard navigation
+// 键盘导航测试
 const tabResult = await interaction.testTabNavigation();
 if (tabResult.trapDetected) {
-  console.error('Focus trap detected!');
+  console.error('检测到焦点陷阱！');
 }
 
-// Responsive testing
+// 响应式测试
 const results = await interaction.testResponsive(COMMON_VIEWPORTS);
 ```
 
-## Architecture
+## 架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      DeskPilot                              │
 │                                                             │
-│     Unified API + Hybrid Mode + Multi-VLM + Cost Tracking   │
+│      统一 API + 混合模式 + 多 VLM + 成本追踪                │
 ├─────────────────────────────────────────────────────────────┤
-│                   Smart Fallback Chain                      │
+│                    智能回退链                               │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ Level 1: Refs (from snapshot) - free, fast          │   │
-│  │ Level 2: CSS/XPath via CDP - free, fast             │   │
-│  │ Level 3: Visual AI via VLM - paid, intelligent      │   │
+│  │ 第一层: Refs（来自快照）- 免费、快速                 │   │
+│  │ 第二层: CSS/XPath via CDP - 免费、快速              │   │
+│  │ 第三层: 视觉 AI via VLM - 付费、智能                │   │
 │  └─────────────────────────────────────────────────────┘   │
 ├─────────────────────────────────────────────────────────────┤
 │   ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐    │
-│   │ CDP Adapter │  │ Python      │  │ NutJS Adapter   │    │
-│   │ (WebView)   │  │ Bridge      │  │ (Native)        │    │
+│   │ CDP 适配器  │  │ Python      │  │ NutJS 适配器    │    │
+│   │ (WebView)   │  │ 桥接        │  │ (原生控制)      │    │
 │   └─────────────┘  └─────────────┘  └─────────────────┘    │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌──────────────┐ ┌───────────────┐ ┌──────────────────┐   │
-│  │ A11y Tester  │ │ Visual       │  │ Interaction     │   │
-│  │              │ │ Regression   │  │ Tester          │   │
+│  │ 无障碍测试   │ │ 视觉回归      │  │ 交互测试        │   │
 │  └──────────────┘ └───────────────┘ └──────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Testing Modes
+## 测试模式
 
-| Mode | Best For | Cost | Speed |
-|------|----------|------|-------|
-| **Deterministic** | CI/CD, regression testing | Free | Fast (ms) |
-| **Visual** | Exploratory testing, complex UIs | ~$0.01-0.05/action | 1-5s |
-| **Hybrid** | Production testing | Minimal (VLM when needed) | Fast with fallback |
+| 模式 | 适用场景 | 费用 | 速度 |
+|------|----------|------|------|
+| **确定性** | CI/CD、回归测试 | 免费 | 快速 (毫秒级) |
+| **视觉** | 探索性测试、复杂 UI | ~$0.01-0.05/操作 | 1-5秒 |
+| **混合** | 生产测试 | 最小化 (按需 VLM) | 快速+智能回退 |
 
-## VLM Providers
+## VLM 提供商
 
 ```typescript
-// Anthropic Claude (recommended)
+// Anthropic Claude（推荐）
 { provider: 'anthropic', model: 'claude-sonnet-4-20250514' }
 
 // OpenAI GPT-4V
 { provider: 'openai', model: 'gpt-4o' }
 
-// Volcengine Doubao (China)
+// 豆包（中国）
 { provider: 'volcengine', model: 'doubao-1-5-vision-pro' }
 
-// Agent Mode (auto-detect Cursor/Claude CLI/VSCode)
+// Agent 模式（自动检测 Cursor/Claude CLI/VSCode）
 { provider: 'agent' }
 
-// Custom (OpenAI-compatible API)
+// 自定义（OpenAI 兼容 API）
 { provider: 'custom', baseURL: 'http://localhost:8080/v1' }
 ```
 
-## Starting Tauri App with Debug Port
+## 启动 Tauri 应用（开启调试端口）
 
 ```bash
 # macOS / Linux
@@ -262,20 +259,20 @@ WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9222 cargo tauri dev
 $env:WEBKIT_INSPECTOR_HTTP_SERVER="127.0.0.1:9222"; cargo tauri dev
 ```
 
-## Environment Variables
+## 环境变量
 
-| Variable | Description |
-|----------|-------------|
-| `CDP_PORT` | CDP debugging port (default: 9222) |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `USE_AGENT` | Enable agent mode auto-detection |
+| 变量 | 说明 |
+|------|------|
+| `CDP_PORT` | CDP 调试端口（默认: 9222） |
+| `ANTHROPIC_API_KEY` | Anthropic API 密钥 |
+| `OPENAI_API_KEY` | OpenAI API 密钥 |
+| `USE_AGENT` | 启用 Agent 模式自动检测 |
 
-## CI/CD Integration
+## CI/CD 集成
 
 ```yaml
 # .github/workflows/e2e.yml
-name: E2E Tests
+name: E2E 测试
 on: [push, pull_request]
 
 jobs:
@@ -287,32 +284,32 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Install dependencies
+      - name: 安装依赖
         run: npm ci
       
-      - name: Start app with debug port
+      - name: 启动应用（开启调试端口）
         run: |
           WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9222 \
           ./target/release/my-app &
           sleep 5
       
-      - name: Run E2E tests
+      - name: 运行 E2E 测试
         run: npx tsx tests/e2e/run.ts
         env:
           CDP_PORT: 9222
 ```
 
-## Contributing
+## 贡献
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解贡献指南。
 
-## License
+## 许可证
 
-Apache-2.0 - see [LICENSE](LICENSE) for details.
+Apache-2.0 - 详见 [LICENSE](LICENSE)。
 
-## Credits
+## 致谢
 
-Inspired by:
+灵感来源于：
 - [agent-browser](https://github.com/anthropics/agent-browser) - Anthropic
 - [UI-TARS](https://github.com/anthropics/UI-TARS-desktop) - VLM GUI Agent
 - [Claude Computer Use](https://docs.anthropic.com/en/docs/computer-use) - Anthropic
@@ -320,5 +317,5 @@ Inspired by:
 ---
 
 <p align="center">
-  Made with ❤️ by <a href="https://github.com/TbusOS">TbusOS</a>
+  由 <a href="https://github.com/TbusOS">TbusOS</a> 用 ❤️ 打造
 </p>
