@@ -1,13 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
   <defs>
-    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="compass-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#3b82f6"/>
       <stop offset="100%" stop-color="#8b5cf6"/>
     </linearGradient>
   </defs>
   
+  <!-- Background circle -->
   <circle cx="60" cy="60" r="54" fill="#0c1222"/>
-  <circle cx="60" cy="60" r="50" fill="none" stroke="url(#g1)" stroke-width="2"/>
+  <circle cx="60" cy="60" r="50" fill="none" stroke="url(#compass-gradient)" stroke-width="2"/>
   
   <!-- Compass needle -->
   <g fill="#ffffff">
