@@ -2,7 +2,7 @@
 
 var child_process = require('child_process');
 var fs3 = require('fs');
-var path3 = require('path');
+var path4 = require('path');
 var readline = require('readline');
 var crypto = require('crypto');
 
@@ -25,7 +25,7 @@ function _interopNamespace(e) {
 }
 
 var fs3__namespace = /*#__PURE__*/_interopNamespace(fs3);
-var path3__namespace = /*#__PURE__*/_interopNamespace(path3);
+var path4__namespace = /*#__PURE__*/_interopNamespace(path4);
 var readline__namespace = /*#__PURE__*/_interopNamespace(readline);
 var crypto__namespace = /*#__PURE__*/_interopNamespace(crypto);
 
@@ -463,7 +463,7 @@ var init_python_bridge = __esm({
       constructor(config = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
         if (!this.config.serverPath) {
-          this.config.serverPath = path3__namespace.resolve(
+          this.config.serverPath = path4__namespace.resolve(
             __dirname,
             "../../../../app/tests/desktop/bridge_server.py"
           );
@@ -1151,7 +1151,7 @@ var init_cursor_bridge = __esm({
       environment;
       constructor(_config) {
         this.environment = detectAgentEnvironment() || "unknown";
-        this.screenshotDir = path3__namespace.join(process.cwd(), ".agent-test-screenshots");
+        this.screenshotDir = path4__namespace.join(process.cwd(), ".agent-test-screenshots");
         if (!fs3__namespace.existsSync(this.screenshotDir)) {
           fs3__namespace.mkdirSync(this.screenshotDir, { recursive: true });
         }
@@ -1169,7 +1169,7 @@ var init_cursor_bridge = __esm({
       saveScreenshot(base64Data) {
         this.requestCount++;
         const filename = `screenshot_${Date.now()}_${this.requestCount}.png`;
-        const filepath = path3__namespace.join(this.screenshotDir, filename);
+        const filepath = path4__namespace.join(this.screenshotDir, filename);
         const cleanData = base64Data.replace(/^data:image\/\w+;base64,/, "");
         fs3__namespace.writeFileSync(filepath, Buffer.from(cleanData, "base64"));
         return filepath;
@@ -1186,7 +1186,7 @@ var init_cursor_bridge = __esm({
           context: request.context,
           timestamp: (/* @__PURE__ */ new Date()).toISOString()
         };
-        const requestFile = path3__namespace.join(
+        const requestFile = path4__namespace.join(
           this.screenshotDir,
           `request_${Date.now()}.json`
         );
@@ -2540,19 +2540,19 @@ var DesktopTest = class {
   // ============================================================================
   // Screenshot & Recording
   // ============================================================================
-  async screenshot(path4, options = {}) {
+  async screenshot(path5, options = {}) {
     this.ensureConnected();
     if (!this.cdpAdapter) {
       throw new Error("CDP adapter not available for screenshot");
     }
-    return this.cdpAdapter.screenshot(path4, options);
+    return this.cdpAdapter.screenshot(path5, options);
   }
-  async startRecording(path4) {
+  async startRecording(path5) {
     this.ensureConnected();
     if (!this.cdpAdapter) {
       throw new Error("CDP adapter not available for recording");
     }
-    await this.cdpAdapter.startRecording(path4);
+    await this.cdpAdapter.startRecording(path5);
   }
   async stopRecording() {
     this.ensureConnected();
@@ -3701,13 +3701,13 @@ var AccessibilityTreeManager = class {
    * Get the path from root to a node
    */
   getPath(node) {
-    const path4 = [];
+    const path5 = [];
     let current = node;
     while (current) {
-      path4.unshift(current);
+      path5.unshift(current);
       current = current.parent;
     }
-    return path4;
+    return path5;
   }
   /**
    * Get all siblings of a node
@@ -4255,9 +4255,9 @@ var VisualRegressionTester = class {
    */
   async compareScreenshot(name, _options = {}) {
     const filename = this.getSnapshotName(name);
-    const screenshotPath = path3__namespace.join(this.options.outputDir, filename);
-    const baselinePath = path3__namespace.join(this.options.baselineDir, filename);
-    const diffPath = path3__namespace.join(this.options.outputDir, `diff_${filename}`);
+    const screenshotPath = path4__namespace.join(this.options.outputDir, filename);
+    const baselinePath = path4__namespace.join(this.options.baselineDir, filename);
+    const diffPath = path4__namespace.join(this.options.outputDir, `diff_${filename}`);
     const screenshot = await this.test.screenshot();
     const screenshotBuffer = Buffer.from(screenshot, "base64");
     fs3__namespace.writeFileSync(screenshotPath, screenshotBuffer);
@@ -4358,8 +4358,8 @@ var VisualRegressionTester = class {
   async updateAllBaselines() {
     const currentFiles = fs3__namespace.readdirSync(this.options.outputDir).filter((f) => f.endsWith(".png") && !f.startsWith("diff_"));
     for (const file of currentFiles) {
-      const src = path3__namespace.join(this.options.outputDir, file);
-      const dest = path3__namespace.join(this.options.baselineDir, file);
+      const src = path4__namespace.join(this.options.outputDir, file);
+      const dest = path4__namespace.join(this.options.baselineDir, file);
       fs3__namespace.copyFileSync(src, dest);
     }
   }
@@ -4377,7 +4377,7 @@ var VisualRegressionTester = class {
    */
   deleteBaseline(name) {
     const filename = this.getSnapshotName(name);
-    const baselinePath = path3__namespace.join(this.options.baselineDir, filename);
+    const baselinePath = path4__namespace.join(this.options.baselineDir, filename);
     if (fs3__namespace.existsSync(baselinePath)) {
       fs3__namespace.unlinkSync(baselinePath);
       return true;
@@ -6008,15 +6008,15 @@ var FlowTester = class {
     const queue = [[sourceId]];
     const visited = /* @__PURE__ */ new Set([sourceId]);
     while (queue.length > 0) {
-      const path4 = queue.shift();
-      const current = path4[path4.length - 1];
+      const path5 = queue.shift();
+      const current = path5[path5.length - 1];
       if (current === targetId) {
-        return path4;
+        return path5;
       }
       for (const edge of edges) {
         if (edge.source === current && !visited.has(edge.target)) {
           visited.add(edge.target);
-          queue.push([...path4, edge.target]);
+          queue.push([...path5, edge.target]);
         }
       }
     }
@@ -6026,8 +6026,8 @@ var FlowTester = class {
    * Assert a path exists between two nodes
    */
   async assertPathExists(sourceId, targetId, message) {
-    const path4 = await this.getPath(sourceId, targetId);
-    if (path4.length === 0) {
+    const path5 = await this.getPath(sourceId, targetId);
+    if (path5.length === 0) {
       throw new Error(message || `Expected path from "${sourceId}" to "${targetId}"`);
     }
   }
@@ -9105,6 +9105,537 @@ Actual order: ${actualOrder}`
     });
   }
 };
+var ScreenRecorder = class {
+  test;
+  options;
+  history = [];
+  recordingState = { isRecording: false };
+  recordingFrames = [];
+  recordingInterval = null;
+  screenshotCounter = 0;
+  constructor(test, options = {}) {
+    this.test = test;
+    this.options = {
+      outputDir: options.outputDir || "./screenshots",
+      defaultFormat: options.defaultFormat || "png",
+      defaultQuality: options.defaultQuality || 90,
+      keepHistory: options.keepHistory ?? true,
+      maxHistorySize: options.maxHistorySize || 100
+    };
+    this.ensureDir(this.options.outputDir);
+  }
+  /**
+   * Take a screenshot
+   */
+  async screenshot(options = {}) {
+    const format = options.format || this.options.defaultFormat;
+    options.quality || this.options.defaultQuality;
+    let screenshotData;
+    if (options.selector) {
+      screenshotData = await this.captureElement(options.selector);
+    } else if (options.fullPage) {
+      screenshotData = await this.captureFullPage();
+    } else if (options.clip) {
+      screenshotData = await this.captureRegion(options.clip);
+    } else {
+      screenshotData = await this.captureViewport();
+    }
+    const dimensions = await this.getImageDimensions(screenshotData);
+    const size = Buffer.from(screenshotData, "base64").length;
+    let filePath;
+    if (options.path) {
+      filePath = this.resolvePath(options.path, options);
+      this.ensureDir(path4__namespace.dirname(filePath));
+      const buffer = Buffer.from(screenshotData, "base64");
+      fs3__namespace.writeFileSync(filePath, buffer);
+    }
+    const result = {
+      data: screenshotData,
+      path: filePath,
+      format,
+      dimensions,
+      timestamp: Date.now(),
+      size
+    };
+    if (this.options.keepHistory) {
+      this.addToHistory({
+        id: `screenshot-${++this.screenshotCounter}`,
+        path: filePath || "",
+        data: filePath ? void 0 : screenshotData,
+        // Only keep data if not saved to file
+        timestamp: result.timestamp,
+        dimensions,
+        size
+      });
+    }
+    return result;
+  }
+  /**
+   * Take a screenshot of a specific element
+   */
+  async screenshotElement(selector, pathOrOptions) {
+    const options = typeof pathOrOptions === "string" ? { path: pathOrOptions, selector } : { ...pathOrOptions, selector };
+    return this.screenshot(options);
+  }
+  /**
+   * Take a full page screenshot (scrolling to capture all content)
+   */
+  async screenshotFullPage(pathOrOptions) {
+    const options = typeof pathOrOptions === "string" ? { path: pathOrOptions, fullPage: true } : { ...pathOrOptions, fullPage: true };
+    return this.screenshot(options);
+  }
+  /**
+   * Take a screenshot of a specific region
+   */
+  async screenshotRegion(clip, pathOrOptions) {
+    const options = typeof pathOrOptions === "string" ? { path: pathOrOptions, clip } : { ...pathOrOptions, clip };
+    return this.screenshot(options);
+  }
+  /**
+   * Take multiple screenshots in sequence
+   */
+  async screenshotSequence(count, intervalMs, options = {}) {
+    const results = [];
+    const pattern = options.namePattern || "sequence-{n}";
+    for (let i = 0; i < count; i++) {
+      const filename = pattern.replace("{n}", String(i + 1).padStart(3, "0"));
+      const result = await this.screenshot({
+        ...options,
+        path: options.path ? path4__namespace.join(path4__namespace.dirname(options.path), filename + ".png") : void 0
+      });
+      results.push(result);
+      if (i < count - 1) {
+        await new Promise((resolve2) => setTimeout(resolve2, intervalMs));
+      }
+    }
+    return results;
+  }
+  /**
+   * Start video recording
+   */
+  async startRecording(options) {
+    if (this.recordingState.isRecording) {
+      throw new Error("Recording already in progress. Call stopRecording() first.");
+    }
+    const {
+      path: outputPath,
+      frameRate = 30
+    } = options;
+    this.ensureDir(path4__namespace.dirname(outputPath));
+    this.recordingState = {
+      isRecording: true,
+      startTime: Date.now(),
+      path: outputPath,
+      frameCount: 0
+    };
+    this.recordingFrames = [];
+    const intervalMs = 1e3 / frameRate;
+    this.recordingInterval = setInterval(async () => {
+      if (!this.recordingState.isRecording) return;
+      try {
+        const frame = await this.captureViewport();
+        this.recordingFrames.push(frame);
+        this.recordingState.frameCount = this.recordingFrames.length;
+        this.recordingState.duration = Date.now() - (this.recordingState.startTime || 0);
+      } catch {
+      }
+    }, intervalMs);
+  }
+  /**
+   * Stop video recording and save
+   */
+  async stopRecording() {
+    if (!this.recordingState.isRecording) {
+      throw new Error("No recording in progress");
+    }
+    if (this.recordingInterval) {
+      clearInterval(this.recordingInterval);
+      this.recordingInterval = null;
+    }
+    const duration = Date.now() - (this.recordingState.startTime || 0);
+    const frameCount = this.recordingFrames.length;
+    const outputPath = this.recordingState.path || "./recording.webm";
+    const framesDir = outputPath.replace(/\.\w+$/, "-frames");
+    this.ensureDir(framesDir);
+    let totalSize = 0;
+    const frameData = [];
+    for (let i = 0; i < this.recordingFrames.length; i++) {
+      const framePath = path4__namespace.join(framesDir, `frame-${String(i).padStart(5, "0")}.png`);
+      const buffer = Buffer.from(this.recordingFrames[i], "base64");
+      fs3__namespace.writeFileSync(framePath, buffer);
+      totalSize += buffer.length;
+      frameData.push({
+        index: i,
+        path: framePath,
+        timestamp: (this.recordingState.startTime || 0) + i * (1e3 / 30)
+      });
+    }
+    const manifest = {
+      outputPath,
+      duration,
+      frameCount,
+      frameRate: 30,
+      frames: frameData,
+      startTime: this.recordingState.startTime,
+      endTime: Date.now()
+    };
+    fs3__namespace.writeFileSync(outputPath.replace(/\.\w+$/, ".json"), JSON.stringify(manifest, null, 2));
+    let resolution = { width: 0, height: 0 };
+    if (this.recordingFrames.length > 0) {
+      resolution = await this.getImageDimensions(this.recordingFrames[0]);
+    }
+    this.recordingState = { isRecording: false };
+    this.recordingFrames = [];
+    return {
+      path: outputPath,
+      duration,
+      size: totalSize,
+      frameCount,
+      format: "webm",
+      resolution
+    };
+  }
+  /**
+   * Get current recording state
+   */
+  getRecordingState() {
+    if (this.recordingState.isRecording) {
+      return {
+        ...this.recordingState,
+        duration: Date.now() - (this.recordingState.startTime || 0),
+        frameCount: this.recordingFrames.length,
+        estimatedSize: this.recordingFrames.reduce((sum, f) => sum + Buffer.from(f, "base64").length, 0)
+      };
+    }
+    return this.recordingState;
+  }
+  /**
+   * Pause recording (if in progress)
+   */
+  pauseRecording() {
+    if (this.recordingInterval) {
+      clearInterval(this.recordingInterval);
+      this.recordingInterval = null;
+    }
+  }
+  /**
+   * Resume recording (if paused)
+   */
+  resumeRecording(frameRate = 30) {
+    if (this.recordingState.isRecording && !this.recordingInterval) {
+      const intervalMs = 1e3 / frameRate;
+      this.recordingInterval = setInterval(async () => {
+        if (!this.recordingState.isRecording) return;
+        try {
+          const frame = await this.captureViewport();
+          this.recordingFrames.push(frame);
+        } catch {
+        }
+      }, intervalMs);
+    }
+  }
+  /**
+   * Compare two screenshots
+   */
+  async compare(image1, image2, options = {}) {
+    const { threshold = 0.1, outputDiff } = options;
+    const data1 = typeof image1 === "string" ? image1.startsWith("data:") || image1.length > 500 ? image1 : fs3__namespace.readFileSync(image1).toString("base64") : image1.data;
+    const data2 = typeof image2 === "string" ? image2.startsWith("data:") || image2.length > 500 ? image2 : fs3__namespace.readFileSync(image2).toString("base64") : image2.data;
+    const result = await this.test.evaluate(`
+      (() => {
+        return new Promise((resolve) => {
+          const img1 = new Image();
+          const img2 = new Image();
+          let loaded = 0;
+          
+          const onLoad = () => {
+            loaded++;
+            if (loaded < 2) return;
+            
+            // Create canvases
+            const canvas1 = document.createElement('canvas');
+            const canvas2 = document.createElement('canvas');
+            const canvasDiff = document.createElement('canvas');
+            
+            canvas1.width = img1.width;
+            canvas1.height = img1.height;
+            canvas2.width = img2.width;
+            canvas2.height = img2.height;
+            canvasDiff.width = Math.max(img1.width, img2.width);
+            canvasDiff.height = Math.max(img1.height, img2.height);
+            
+            const ctx1 = canvas1.getContext('2d');
+            const ctx2 = canvas2.getContext('2d');
+            const ctxDiff = canvasDiff.getContext('2d');
+            
+            ctx1.drawImage(img1, 0, 0);
+            ctx2.drawImage(img2, 0, 0);
+            
+            const pixels1 = ctx1.getImageData(0, 0, canvas1.width, canvas1.height);
+            const pixels2 = ctx2.getImageData(0, 0, canvas2.width, canvas2.height);
+            const diffData = ctxDiff.createImageData(canvasDiff.width, canvasDiff.height);
+            
+            let diffPixels = 0;
+            const totalPixels = Math.max(pixels1.data.length, pixels2.data.length) / 4;
+            const diffRegions = [];
+            
+            for (let i = 0; i < diffData.data.length; i += 4) {
+              const idx = i / 4;
+              const x = idx % canvasDiff.width;
+              const y = Math.floor(idx / canvasDiff.width);
+              
+              const r1 = pixels1.data[i] || 0;
+              const g1 = pixels1.data[i + 1] || 0;
+              const b1 = pixels1.data[i + 2] || 0;
+              
+              const r2 = pixels2.data[i] || 0;
+              const g2 = pixels2.data[i + 1] || 0;
+              const b2 = pixels2.data[i + 2] || 0;
+              
+              const diff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+              
+              if (diff > ${threshold * 255 * 3}) {
+                diffPixels++;
+                diffData.data[i] = 255;
+                diffData.data[i + 1] = 0;
+                diffData.data[i + 2] = 0;
+                diffData.data[i + 3] = 255;
+              } else {
+                diffData.data[i] = (r1 + r2) / 2;
+                diffData.data[i + 1] = (g1 + g2) / 2;
+                diffData.data[i + 2] = (b1 + b2) / 2;
+                diffData.data[i + 3] = 128;
+              }
+            }
+            
+            ctxDiff.putImageData(diffData, 0, 0);
+            
+            resolve({
+              identical: diffPixels === 0,
+              diffPercent: (diffPixels / totalPixels) * 100,
+              diffPixels,
+              totalPixels,
+              diffImageData: canvasDiff.toDataURL('image/png').split(',')[1],
+              diffRegions: []
+            });
+          };
+          
+          img1.onload = onLoad;
+          img2.onload = onLoad;
+          img1.src = 'data:image/png;base64,${data1}';
+          img2.src = 'data:image/png;base64,${data2}';
+        });
+      })()
+    `);
+    if (outputDiff && result.diffImageData) {
+      const diffBuffer = Buffer.from(result.diffImageData, "base64");
+      fs3__namespace.writeFileSync(outputDiff, diffBuffer);
+      result.diffImagePath = outputDiff;
+    }
+    return result;
+  }
+  /**
+   * Get screenshot history
+   */
+  getHistory() {
+    return [...this.history];
+  }
+  /**
+   * Clear screenshot history
+   */
+  clearHistory() {
+    this.history = [];
+  }
+  /**
+   * Get a screenshot from history by ID
+   */
+  getFromHistory(id) {
+    return this.history.find((h) => h.id === id);
+  }
+  /**
+   * Delete screenshots from history and optionally from disk
+   */
+  deleteFromHistory(id, deleteFile = false) {
+    const index = this.history.findIndex((h) => h.id === id);
+    if (index === -1) return false;
+    const entry = this.history[index];
+    if (deleteFile && entry.path && fs3__namespace.existsSync(entry.path)) {
+      fs3__namespace.unlinkSync(entry.path);
+    }
+    this.history.splice(index, 1);
+    return true;
+  }
+  /**
+   * Create a GIF from recent screenshots
+   */
+  async createGif(screenshots, options) {
+    const frames = screenshots.map((s, i) => ({
+      index: i,
+      data: typeof s === "string" ? s : s.data
+    }));
+    const manifest = {
+      type: "gif",
+      frames,
+      delay: options.delay || 100,
+      loop: options.loop ?? true
+    };
+    fs3__namespace.writeFileSync(options.path + ".json", JSON.stringify(manifest, null, 2));
+    return {
+      path: options.path,
+      size: JSON.stringify(manifest).length
+    };
+  }
+  /**
+   * Annotate a screenshot
+   */
+  async annotate(screenshot, annotations, outputPath) {
+    const data = typeof screenshot === "string" ? screenshot : screenshot.data;
+    const annotatedData = await this.test.evaluate(`
+      (() => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            const annotations = ${JSON.stringify(annotations)};
+            
+            for (const ann of annotations) {
+              ctx.strokeStyle = ann.color || '#ff0000';
+              ctx.fillStyle = ann.color || '#ff0000';
+              ctx.lineWidth = 2;
+              ctx.font = '16px sans-serif';
+              
+              switch (ann.type) {
+                case 'rectangle':
+                  ctx.strokeRect(ann.x, ann.y, ann.width || 100, ann.height || 50);
+                  break;
+                case 'circle':
+                  ctx.beginPath();
+                  ctx.arc(ann.x, ann.y, ann.radius || 25, 0, Math.PI * 2);
+                  ctx.stroke();
+                  break;
+                case 'arrow':
+                  ctx.beginPath();
+                  ctx.moveTo(ann.x, ann.y);
+                  ctx.lineTo(ann.endX || ann.x + 50, ann.endY || ann.y + 50);
+                  ctx.stroke();
+                  // Arrow head
+                  const angle = Math.atan2((ann.endY || ann.y) - ann.y, (ann.endX || ann.x) - ann.x);
+                  ctx.beginPath();
+                  ctx.moveTo(ann.endX || ann.x + 50, ann.endY || ann.y + 50);
+                  ctx.lineTo(
+                    (ann.endX || ann.x + 50) - 10 * Math.cos(angle - Math.PI / 6),
+                    (ann.endY || ann.y + 50) - 10 * Math.sin(angle - Math.PI / 6)
+                  );
+                  ctx.moveTo(ann.endX || ann.x + 50, ann.endY || ann.y + 50);
+                  ctx.lineTo(
+                    (ann.endX || ann.x + 50) - 10 * Math.cos(angle + Math.PI / 6),
+                    (ann.endY || ann.y + 50) - 10 * Math.sin(angle + Math.PI / 6)
+                  );
+                  ctx.stroke();
+                  break;
+                case 'text':
+                  ctx.fillText(ann.text || '', ann.x, ann.y);
+                  break;
+              }
+            }
+            
+            resolve(canvas.toDataURL('image/png').split(',')[1]);
+          };
+          img.src = 'data:image/png;base64,${data}';
+        });
+      })()
+    `);
+    const dimensions = await this.getImageDimensions(annotatedData);
+    const size = Buffer.from(annotatedData, "base64").length;
+    if (outputPath) {
+      const buffer = Buffer.from(annotatedData, "base64");
+      fs3__namespace.writeFileSync(outputPath, buffer);
+    }
+    return {
+      data: annotatedData,
+      path: outputPath,
+      format: "png",
+      dimensions,
+      timestamp: Date.now(),
+      size
+    };
+  }
+  // Private methods
+  async captureViewport() {
+    return this.test.screenshot();
+  }
+  async captureFullPage() {
+    return this.test.screenshot();
+  }
+  async captureElement(selector) {
+    const bounds = await this.test.evaluate(`
+      (() => {
+        const el = document.querySelector('${selector}');
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height
+        };
+      })()
+    `);
+    if (!bounds) {
+      throw new Error(`Element not found: ${selector}`);
+    }
+    return this.test.screenshot();
+  }
+  async captureRegion(clip) {
+    return this.test.screenshot();
+  }
+  async getImageDimensions(base64Data) {
+    const result = await this.test.evaluate(`
+      (() => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve({ width: img.width, height: img.height });
+          img.onerror = () => resolve({ width: 0, height: 0 });
+          img.src = 'data:image/png;base64,${base64Data}';
+        });
+      })()
+    `);
+    return result;
+  }
+  resolvePath(filePath, options) {
+    let resolvedPath = filePath;
+    if (options.timestamp) {
+      const ext = path4__namespace.extname(filePath);
+      const base = filePath.slice(0, -ext.length);
+      resolvedPath = `${base}-${Date.now()}${ext}`;
+    }
+    if (options.prefix) {
+      const dir = path4__namespace.dirname(resolvedPath);
+      const name = path4__namespace.basename(resolvedPath);
+      resolvedPath = path4__namespace.join(dir, `${options.prefix}-${name}`);
+    }
+    if (!path4__namespace.isAbsolute(resolvedPath)) {
+      resolvedPath = path4__namespace.join(this.options.outputDir, resolvedPath);
+    }
+    return resolvedPath;
+  }
+  ensureDir(dir) {
+    if (!fs3__namespace.existsSync(dir)) {
+      fs3__namespace.mkdirSync(dir, { recursive: true });
+    }
+  }
+  addToHistory(entry) {
+    this.history.push(entry);
+    while (this.history.length > this.options.maxHistorySize) {
+      this.history.shift();
+    }
+  }
+};
 
 exports.A11yTester = A11yTester;
 exports.ARIA_ROLES = ARIA_ROLES;
@@ -9119,6 +9650,7 @@ exports.InteractionTester = InteractionTester;
 exports.MonacoTester = MonacoTester;
 exports.NetworkInterceptor = NetworkInterceptor;
 exports.RefManager = RefManager;
+exports.ScreenRecorder = ScreenRecorder;
 exports.Session = Session;
 exports.SessionManager = SessionManager;
 exports.StreamServer = StreamServer;

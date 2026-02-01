@@ -162,3 +162,16 @@ export {
   type TimelineState,
   type TimelineFilterOptions,
 } from './timeline-tester.js';
+
+// Screen Recorder (Screenshots & Video)
+export {
+  ScreenRecorder,
+  type ScreenshotFormat,
+  type ScreenshotOptions,
+  type ScreenshotResult,
+  type RecordingOptions,
+  type RecordingState,
+  type RecordingResult,
+  type ScreenshotHistoryEntry,
+  type ScreenshotComparison,
+} from './screen-recorder.js';

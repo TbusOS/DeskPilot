@@ -2820,4 +2820,302 @@ declare class TimelineTester {
     private filterEvents;
 }
 
-export { type A11yResult, A11yTester, type A11yViolation, ARIA_ROLES, type AXIssue, type AXNode, type AXProperty, type AXQueryResult, type AccessibilityTree, AccessibilityTreeManager, Benchmark, COMMON_VIEWPORTS, type ClientInfo, type CompletionItem, type CursorPosition, DesktopTest, type Diagnostic, type DialogInvocation, type DialogOptions, type DialogResult, type DialogType, type DragResult, type EdgeFilterOptions, type EditorState, type ElementRef, type FileFilter, type FlowEdge, type FlowNode, type FlowSnapshot, FlowTester, type HttpMethod, type InputEvent, InteractionTester, type KeyboardNavResult, type LayoutType, type LayoutValidationOptions, type MemoryMeasurement, type MockDialogConfig, MonacoTester, NetworkInterceptor, type NodeFilterOptions, type PerformanceEntry, type PerformanceReport, type RecordedRequest, type RefElement, RefManager, type RefResolution, type RefSnapshot, type RequestFilterOptions, type RequestInfo, type ResourceTiming, type ResponseInfo, type ResponsiveResult, type RouteDefinition, type RouteOptions, type ScrollOptions, type ScrollPerformance, type SelectionRange, Session, type SessionInfo, SessionManager, type SessionOptions, type SessionState, type SnapshotOptions, type StepStatus, type StepType, type StorageState, type StreamFrame, type StreamOptions, StreamServer, type StreamStats, TauriDialogTester, type TestRunInfo, type TestStep, type ThresholdConfig, type TimelineEvent, type TimelineFilterOptions, type TimelineState, TimelineTester, type TimingMeasurement, type TokenInfo, type Viewport, type ViolationImpact, type VirtualItem, type VirtualListState, VirtualListTester, type VisualDiffResult, type VisualRegressionOptions, VisualRegressionTester, Visualizer, type VisualizerOptions, WCAG_TAGS, createA11yTester, createAccessibilityTreeManager, createInteractionTester, createVisualRegressionTester };
+/**
+ * ScreenRecorder - Comprehensive Screenshot and Video Recording Module
+ *
+ * Inspired by agent-browser's screenshot and recording capabilities.
+ * Provides full-featured screenshot capture and video recording for test automation.
+ */
+
+/** Screenshot format */
+type ScreenshotFormat = 'png' | 'jpeg' | 'webp';
+/** Screenshot options */
+interface ScreenshotOptions {
+    /** Output path (if not provided, returns base64) */
+    path?: string;
+    /** Image format */
+    format?: ScreenshotFormat;
+    /** JPEG/WebP quality (1-100) */
+    quality?: number;
+    /** Capture full page (scroll to capture all) */
+    fullPage?: boolean;
+    /** Clip region */
+    clip?: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+    /** Element selector to screenshot */
+    selector?: string;
+    /** Scale factor (for HiDPI) */
+    scale?: number;
+    /** Omit background (transparent PNG) */
+    omitBackground?: boolean;
+    /** Add timestamp to filename */
+    timestamp?: boolean;
+    /** Custom filename prefix */
+    prefix?: string;
+}
+/** Screenshot result */
+interface ScreenshotResult {
+    /** Base64 encoded image data */
+    data: string;
+    /** File path (if saved) */
+    path?: string;
+    /** Image format */
+    format: ScreenshotFormat;
+    /** Image dimensions */
+    dimensions: {
+        width: number;
+        height: number;
+    };
+    /** Timestamp */
+    timestamp: number;
+    /** File size in bytes */
+    size: number;
+}
+/** Recording options */
+interface RecordingOptions {
+    /** Output path */
+    path: string;
+    /** Video format */
+    format?: 'webm' | 'mp4';
+    /** Frame rate (fps) */
+    frameRate?: number;
+    /** Video quality (crf: 0-51, lower is better) */
+    quality?: number;
+    /** Video codec */
+    codec?: 'vp8' | 'vp9' | 'h264';
+    /** Video resolution */
+    resolution?: {
+        width: number;
+        height: number;
+    };
+    /** Include audio */
+    audio?: boolean;
+    /** Include cursor */
+    cursor?: boolean;
+}
+/** Recording state */
+interface RecordingState {
+    /** Is currently recording */
+    isRecording: boolean;
+    /** Recording start time */
+    startTime?: number;
+    /** Recording duration (ms) */
+    duration?: number;
+    /** Output path */
+    path?: string;
+    /** Frame count */
+    frameCount?: number;
+    /** Estimated file size */
+    estimatedSize?: number;
+}
+/** Recording result */
+interface RecordingResult {
+    /** Output file path */
+    path: string;
+    /** Duration in milliseconds */
+    duration: number;
+    /** File size in bytes */
+    size: number;
+    /** Frame count */
+    frameCount: number;
+    /** Format */
+    format: string;
+    /** Resolution */
+    resolution: {
+        width: number;
+        height: number;
+    };
+}
+/** Screenshot history entry */
+interface ScreenshotHistoryEntry {
+    /** Entry ID */
+    id: string;
+    /** File path */
+    path: string;
+    /** Base64 data (if kept in memory) */
+    data?: string;
+    /** Timestamp */
+    timestamp: number;
+    /** Description/label */
+    description?: string;
+    /** Dimensions */
+    dimensions: {
+        width: number;
+        height: number;
+    };
+    /** File size */
+    size: number;
+}
+/** Comparison result */
+interface ScreenshotComparison {
+    /** Are screenshots identical */
+    identical: boolean;
+    /** Difference percentage (0-100) */
+    diffPercent: number;
+    /** Diff image path */
+    diffImagePath?: string;
+    /** Diff image base64 */
+    diffImageData?: string;
+    /** Number of different pixels */
+    diffPixels: number;
+    /** Total pixels */
+    totalPixels: number;
+    /** Regions that differ */
+    diffRegions: Array<{
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    }>;
+}
+/**
+ * ScreenRecorder - Full-featured screenshot and video recording
+ *
+ * @example
+ * ```typescript
+ * const recorder = new ScreenRecorder(test, { outputDir: './screenshots' });
+ *
+ * // Take screenshot
+ * const result = await recorder.screenshot({ path: 'test.png' });
+ *
+ * // Take element screenshot
+ * await recorder.screenshotElement('#header', 'header.png');
+ *
+ * // Full page screenshot
+ * await recorder.screenshotFullPage('fullpage.png');
+ *
+ * // Start video recording
+ * await recorder.startRecording({ path: './videos/test.webm' });
+ * // ... perform test actions ...
+ * const video = await recorder.stopRecording();
+ *
+ * // Compare screenshots
+ * const diff = await recorder.compare('before.png', 'after.png');
+ * ```
+ */
+declare class ScreenRecorder {
+    private test;
+    private options;
+    private history;
+    private recordingState;
+    private recordingFrames;
+    private recordingInterval;
+    private screenshotCounter;
+    constructor(test: DesktopTest, options?: {
+        outputDir?: string;
+        defaultFormat?: ScreenshotFormat;
+        defaultQuality?: number;
+        keepHistory?: boolean;
+        maxHistorySize?: number;
+    });
+    /**
+     * Take a screenshot
+     */
+    screenshot(options?: ScreenshotOptions): Promise<ScreenshotResult>;
+    /**
+     * Take a screenshot of a specific element
+     */
+    screenshotElement(selector: string, pathOrOptions?: string | ScreenshotOptions): Promise<ScreenshotResult>;
+    /**
+     * Take a full page screenshot (scrolling to capture all content)
+     */
+    screenshotFullPage(pathOrOptions?: string | ScreenshotOptions): Promise<ScreenshotResult>;
+    /**
+     * Take a screenshot of a specific region
+     */
+    screenshotRegion(clip: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    }, pathOrOptions?: string | ScreenshotOptions): Promise<ScreenshotResult>;
+    /**
+     * Take multiple screenshots in sequence
+     */
+    screenshotSequence(count: number, intervalMs: number, options?: ScreenshotOptions & {
+        namePattern?: string;
+    }): Promise<ScreenshotResult[]>;
+    /**
+     * Start video recording
+     */
+    startRecording(options: RecordingOptions): Promise<void>;
+    /**
+     * Stop video recording and save
+     */
+    stopRecording(): Promise<RecordingResult>;
+    /**
+     * Get current recording state
+     */
+    getRecordingState(): RecordingState;
+    /**
+     * Pause recording (if in progress)
+     */
+    pauseRecording(): void;
+    /**
+     * Resume recording (if paused)
+     */
+    resumeRecording(frameRate?: number): void;
+    /**
+     * Compare two screenshots
+     */
+    compare(image1: string | ScreenshotResult, image2: string | ScreenshotResult, options?: {
+        threshold?: number;
+        outputDiff?: string;
+    }): Promise<ScreenshotComparison>;
+    /**
+     * Get screenshot history
+     */
+    getHistory(): ScreenshotHistoryEntry[];
+    /**
+     * Clear screenshot history
+     */
+    clearHistory(): void;
+    /**
+     * Get a screenshot from history by ID
+     */
+    getFromHistory(id: string): ScreenshotHistoryEntry | undefined;
+    /**
+     * Delete screenshots from history and optionally from disk
+     */
+    deleteFromHistory(id: string, deleteFile?: boolean): boolean;
+    /**
+     * Create a GIF from recent screenshots
+     */
+    createGif(screenshots: Array<string | ScreenshotResult>, options: {
+        path: string;
+        delay?: number;
+        loop?: boolean;
+    }): Promise<{
+        path: string;
+        size: number;
+    }>;
+    /**
+     * Annotate a screenshot
+     */
+    annotate(screenshot: string | ScreenshotResult, annotations: Array<{
+        type: 'rectangle' | 'circle' | 'arrow' | 'text';
+        x: number;
+        y: number;
+        width?: number;
+        height?: number;
+        radius?: number;
+        text?: string;
+        color?: string;
+        endX?: number;
+        endY?: number;
+    }>, outputPath?: string): Promise<ScreenshotResult>;
+    private captureViewport;
+    private captureFullPage;
+    private captureElement;
+    private captureRegion;
+    private getImageDimensions;
+    private resolvePath;
+    private ensureDir;
+    private addToHistory;
+}
+
+export { type A11yResult, A11yTester, type A11yViolation, ARIA_ROLES, type AXIssue, type AXNode, type AXProperty, type AXQueryResult, type AccessibilityTree, AccessibilityTreeManager, Benchmark, COMMON_VIEWPORTS, type ClientInfo, type CompletionItem, type CursorPosition, DesktopTest, type Diagnostic, type DialogInvocation, type DialogOptions, type DialogResult, type DialogType, type DragResult, type EdgeFilterOptions, type EditorState, type ElementRef, type FileFilter, type FlowEdge, type FlowNode, type FlowSnapshot, FlowTester, type HttpMethod, type InputEvent, InteractionTester, type KeyboardNavResult, type LayoutType, type LayoutValidationOptions, type MemoryMeasurement, type MockDialogConfig, MonacoTester, NetworkInterceptor, type NodeFilterOptions, type PerformanceEntry, type PerformanceReport, type RecordedRequest, type RecordingOptions, type RecordingResult, type RecordingState, type RefElement, RefManager, type RefResolution, type RefSnapshot, type RequestFilterOptions, type RequestInfo, type ResourceTiming, type ResponseInfo, type ResponsiveResult, type RouteDefinition, type RouteOptions, ScreenRecorder, type ScreenshotComparison, type ScreenshotFormat, type ScreenshotHistoryEntry, type ScreenshotOptions, type ScreenshotResult, type ScrollOptions, type ScrollPerformance, type SelectionRange, Session, type SessionInfo, SessionManager, type SessionOptions, type SessionState, type SnapshotOptions, type StepStatus, type StepType, type StorageState, type StreamFrame, type StreamOptions, StreamServer, type StreamStats, TauriDialogTester, type TestRunInfo, type TestStep, type ThresholdConfig, type TimelineEvent, type TimelineFilterOptions, type TimelineState, TimelineTester, type TimingMeasurement, type TokenInfo, type Viewport, type ViolationImpact, type VirtualItem, type VirtualListState, VirtualListTester, type VisualDiffResult, type VisualRegressionOptions, VisualRegressionTester, Visualizer, type VisualizerOptions, WCAG_TAGS, createA11yTester, createAccessibilityTreeManager, createInteractionTester, createVisualRegressionTester };
