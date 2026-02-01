@@ -175,3 +175,15 @@ export {
   type ScreenshotHistoryEntry,
   type ScreenshotComparison,
 } from './screen-recorder.js';
+
+// Daemon Mode (Persistent Process)
+export {
+  DaemonManager,
+  ensureDaemon,
+  withDaemon,
+  type DaemonConfig,
+  type DaemonStatus,
+  type DaemonCommand,
+  type DaemonResponse,
+  type DaemonClient,
+} from './daemon.js';

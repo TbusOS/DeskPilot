@@ -24,13 +24,35 @@
 
 ## Features
 
+### Core Testing
 - **Hybrid Testing Mode** - Deterministic testing first, VLM fallback when needed
 - **Multi-VLM Support** - Anthropic Claude, OpenAI GPT-4V, Volcengine Doubao, Custom
 - **Agent Mode** - Auto-detects Cursor IDE, Claude Code CLI, VSCode Claude plugin
+- **Ref Mechanism** - Stable element references (`@e1`, `@e2`) for reliable automation
+- **Network Interception** - Mock API responses, request recording, traffic simulation
+- **Cost Tracking** - Monitor and control VLM API costs
+
+### UI Testing
 - **Accessibility Tree** - Full a11y tree traversal, WCAG validation, screen reader simulation
 - **Visual Regression** - Screenshot comparison with baseline management
 - **Interaction Testing** - Keyboard navigation, drag & drop, responsive testing
-- **Cost Tracking** - Monitor and control VLM API costs
+- **Flow Chart Testing** - Test @xyflow/react graphs (nodes, edges, layout)
+- **Virtual List Testing** - Test large virtualized lists and infinite scrolling
+- **Monaco Editor Testing** - Code editor testing (syntax, completions, navigation)
+- **Timeline Testing** - Async timeline and Gantt chart component testing
+
+### Recording & Reporting
+- **Screen Recording** - Screenshots, video recording, GIF creation, annotations
+- **Test Visualizer** - HTML reports with step timeline and screenshots
+- **Performance Benchmarking** - Timing, memory, resource usage measurement
+
+### Advanced Features
+- **Session Management** - Multi-session parallel testing
+- **Stream Server** - WebSocket real-time preview
+- **Daemon Mode** - Persistent process for accelerated testing
+- **Tauri Native Dialogs** - Test file open/save dialogs
+
+### Platform Support
 - **Cross-Platform** - macOS, Linux, Windows support
 - **Tauri Native** - First-class support for Tauri WebView testing
 

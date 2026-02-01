@@ -3,6 +3,7 @@ import * as fs3 from 'fs';
 import * as path4 from 'path';
 import * as readline from 'readline';
 import * as crypto from 'crypto';
+import * as net from 'net';
 
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -9611,7 +9612,399 @@ var ScreenRecorder = class {
     }
   }
 };
+var DaemonManager = class {
+  config;
+  server = null;
+  clients = /* @__PURE__ */ new Set();
+  testInstance = null;
+  startTime = 0;
+  requestCount = 0;
+  idleTimer = null;
+  isRunning = false;
+  constructor(config = {}) {
+    this.config = {
+      socket: config.socket || "",
+      port: config.port || 9224,
+      pidFile: config.pidFile || "/tmp/deskpilot-daemon.pid",
+      autoRestart: config.autoRestart ?? true,
+      maxIdleTime: config.maxIdleTime || 30 * 60 * 1e3,
+      // 30 minutes
+      logFile: config.logFile || "/tmp/deskpilot-daemon.log",
+      debug: config.debug ?? false
+    };
+  }
+  /**
+   * Start the daemon server
+   */
+  async start(testInstance) {
+    if (this.isRunning) {
+      throw new Error("Daemon is already running");
+    }
+    if (await this.isDaemonRunning()) {
+      throw new Error("Another daemon instance is already running");
+    }
+    this.testInstance = testInstance || null;
+    this.startTime = Date.now();
+    this.requestCount = 0;
+    this.server = net.createServer((socket) => this.handleConnection(socket));
+    await new Promise((resolve2, reject) => {
+      if (!this.server) return reject(new Error("Server not initialized"));
+      const onError = (err) => {
+        this.server?.removeListener("error", onError);
+        reject(err);
+      };
+      this.server.once("error", onError);
+      if (this.config.socket) {
+        if (fs3.existsSync(this.config.socket)) {
+          fs3.unlinkSync(this.config.socket);
+        }
+        this.server.listen(this.config.socket, () => {
+          this.server?.removeListener("error", onError);
+          resolve2();
+        });
+      } else {
+        this.server.listen(this.config.port, "127.0.0.1", () => {
+          this.server?.removeListener("error", onError);
+          resolve2();
+        });
+      }
+    });
+    fs3.writeFileSync(this.config.pidFile, String(process.pid));
+    this.isRunning = true;
+    this.log("Daemon started", {
+      endpoint: this.getEndpoint(),
+      pid: process.pid
+    });
+    this.resetIdleTimer();
+  }
+  /**
+   * Stop the daemon server
+   */
+  async stop() {
+    if (!this.isRunning) {
+      return;
+    }
+    this.log("Stopping daemon...");
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    for (const client of this.clients) {
+      client.end();
+      client.destroy();
+    }
+    this.clients.clear();
+    if (this.server) {
+      await new Promise((resolve2) => {
+        this.server?.close(() => resolve2());
+      });
+      this.server = null;
+    }
+    if (fs3.existsSync(this.config.pidFile)) {
+      fs3.unlinkSync(this.config.pidFile);
+    }
+    if (this.config.socket && fs3.existsSync(this.config.socket)) {
+      fs3.unlinkSync(this.config.socket);
+    }
+    this.isRunning = false;
+    this.log("Daemon stopped");
+  }
+  /**
+   * Get daemon status
+   */
+  getStatus() {
+    return {
+      running: this.isRunning,
+      pid: process.pid,
+      uptime: this.isRunning ? Date.now() - this.startTime : void 0,
+      clients: this.clients.size,
+      requestsServed: this.requestCount,
+      memoryUsage: process.memoryUsage().heapUsed,
+      endpoint: this.getEndpoint()
+    };
+  }
+  /**
+   * Set or update the test instance
+   */
+  setTestInstance(test) {
+    this.testInstance = test;
+  }
+  /**
+   * Check if daemon is running (from PID file)
+   */
+  async isDaemonRunning() {
+    if (!fs3.existsSync(this.config.pidFile)) {
+      return false;
+    }
+    try {
+      const pid = parseInt(fs3.readFileSync(this.config.pidFile, "utf-8").trim());
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      fs3.unlinkSync(this.config.pidFile);
+      return false;
+    }
+  }
+  /**
+   * Connect to a running daemon
+   */
+  static async connect(config = {}) {
+    const socket = config.socket || "";
+    const port = config.port || 9224;
+    return new Promise((resolve2, reject) => {
+      const client = socket ? net.createConnection(socket) : net.createConnection(port, "127.0.0.1");
+      let connected = false;
+      let buffer = "";
+      const pendingRequests = /* @__PURE__ */ new Map();
+      client.on("connect", () => {
+        connected = true;
+        resolve2({
+          async execute(method, params) {
+            const id = Math.random().toString(36).substring(2);
+            const command = {
+              type: "execute",
+              id,
+              payload: { method, params }
+            };
+            return new Promise((res, rej) => {
+              pendingRequests.set(id, {
+                resolve: res,
+                reject: rej
+              });
+              client.write(JSON.stringify(command) + "\n");
+            });
+          },
+          async status() {
+            const id = Math.random().toString(36).substring(2);
+            const command = { type: "status", id };
+            return new Promise((res, rej) => {
+              pendingRequests.set(id, {
+                resolve: res,
+                reject: rej
+              });
+              client.write(JSON.stringify(command) + "\n");
+            });
+          },
+          async disconnect() {
+            return new Promise((res) => {
+              client.end(() => res());
+            });
+          },
+          isConnected() {
+            return connected && !client.destroyed;
+          }
+        });
+      });
+      client.on("data", (data) => {
+        buffer += data.toString();
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const response = JSON.parse(line);
+            const pending = pendingRequests.get(response.id);
+            if (pending) {
+              pendingRequests.delete(response.id);
+              if (response.success) {
+                pending.resolve(response.data);
+              } else {
+                pending.reject(new Error(response.error || "Unknown error"));
+              }
+            }
+          } catch {
+          }
+        }
+      });
+      client.on("error", (err) => {
+        if (!connected) {
+          reject(err);
+        }
+        connected = false;
+      });
+      client.on("close", () => {
+        connected = false;
+        for (const [id, pending] of pendingRequests) {
+          pending.reject(new Error("Connection closed"));
+          pendingRequests.delete(id);
+        }
+      });
+      setTimeout(() => {
+        if (!connected) {
+          client.destroy();
+          reject(new Error("Connection timeout"));
+        }
+      }, 5e3);
+    });
+  }
+  /**
+   * Stop a running daemon by PID file
+   */
+  static async stopByPidFile(pidFile = "/tmp/deskpilot-daemon.pid") {
+    if (!fs3.existsSync(pidFile)) {
+      return false;
+    }
+    try {
+      const pid = parseInt(fs3.readFileSync(pidFile, "utf-8").trim());
+      process.kill(pid, "SIGTERM");
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        try {
+          process.kill(pid, 0);
+        } catch {
+          return true;
+        }
+      }
+      process.kill(pid, "SIGKILL");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  // Private methods
+  handleConnection(socket) {
+    this.clients.add(socket);
+    this.log("Client connected", { total: this.clients.size });
+    this.resetIdleTimer();
+    let buffer = "";
+    socket.on("data", async (data) => {
+      buffer += data.toString();
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const command = JSON.parse(line);
+          const response = await this.handleCommand(command);
+          socket.write(JSON.stringify(response) + "\n");
+        } catch (err) {
+          const errorResponse = {
+            id: "unknown",
+            success: false,
+            error: err instanceof Error ? err.message : "Unknown error"
+          };
+          socket.write(JSON.stringify(errorResponse) + "\n");
+        }
+      }
+    });
+    socket.on("close", () => {
+      this.clients.delete(socket);
+      this.log("Client disconnected", { total: this.clients.size });
+      this.resetIdleTimer();
+    });
+    socket.on("error", (err) => {
+      this.log("Client error", { error: err.message });
+      this.clients.delete(socket);
+    });
+  }
+  async handleCommand(command) {
+    this.requestCount++;
+    this.resetIdleTimer();
+    try {
+      switch (command.type) {
+        case "status":
+          return {
+            id: command.id,
+            success: true,
+            data: this.getStatus()
+          };
+        case "shutdown":
+          setTimeout(() => this.stop(), 100);
+          return {
+            id: command.id,
+            success: true,
+            data: { message: "Shutting down" }
+          };
+        case "reset":
+          this.testInstance = null;
+          return {
+            id: command.id,
+            success: true,
+            data: { message: "Reset complete" }
+          };
+        case "execute":
+          if (!this.testInstance) {
+            return {
+              id: command.id,
+              success: false,
+              error: "No test instance available"
+            };
+          }
+          const { method, params } = command.payload;
+          const testMethod = this.testInstance[method];
+          if (typeof testMethod !== "function") {
+            return {
+              id: command.id,
+              success: false,
+              error: `Unknown method: ${method}`
+            };
+          }
+          const result = await testMethod.call(this.testInstance, params);
+          return {
+            id: command.id,
+            success: true,
+            data: result
+          };
+        default:
+          return {
+            id: command.id,
+            success: false,
+            error: `Unknown command type: ${command.type}`
+          };
+      }
+    } catch (err) {
+      return {
+        id: command.id,
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error"
+      };
+    }
+  }
+  getEndpoint() {
+    if (this.config.socket) {
+      return `unix://${this.config.socket}`;
+    }
+    return `tcp://127.0.0.1:${this.config.port}`;
+  }
+  resetIdleTimer() {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+    }
+    if (this.clients.size === 0 && this.config.maxIdleTime > 0) {
+      this.idleTimer = setTimeout(() => {
+        this.log("Idle timeout reached, shutting down");
+        this.stop();
+      }, this.config.maxIdleTime);
+    }
+  }
+  log(message, data) {
+    if (!this.config.debug) return;
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    const logLine = `[${timestamp}] ${message}${data ? " " + JSON.stringify(data) : ""}
+`;
+    if (this.config.logFile) {
+      fs3.appendFileSync(this.config.logFile, logLine);
+    }
+    console.log(logLine.trim());
+  }
+};
+async function ensureDaemon(config = {}) {
+  const manager = new DaemonManager(config);
+  if (await manager.isDaemonRunning()) {
+    return DaemonManager.connect(config);
+  }
+  await manager.start();
+  return DaemonManager.connect(config);
+}
+async function withDaemon(config, fn) {
+  const client = await ensureDaemon(config);
+  try {
+    return await fn(client);
+  } finally {
+    await client.disconnect();
+  }
+}
 
-export { A11yTester, ARIA_ROLES, AccessibilityTreeManager, AssertionError, Assertions, Benchmark, COMMON_VIEWPORTS, DesktopTest, FlowTester, InteractionTester, MonacoTester, NetworkInterceptor, RefManager, ScreenRecorder, Session, SessionManager, StreamServer, TauriDialogTester, TestRunner, TimelineTester, VirtualListTester, VisualRegressionTester, Visualizer, WCAG_TAGS, createA11yTester, createAccessibilityTreeManager, createDesktopTest, createInteractionTester, createVisualRegressionTester };
+export { A11yTester, ARIA_ROLES, AccessibilityTreeManager, AssertionError, Assertions, Benchmark, COMMON_VIEWPORTS, DaemonManager, DesktopTest, FlowTester, InteractionTester, MonacoTester, NetworkInterceptor, RefManager, ScreenRecorder, Session, SessionManager, StreamServer, TauriDialogTester, TestRunner, TimelineTester, VirtualListTester, VisualRegressionTester, Visualizer, WCAG_TAGS, createA11yTester, createAccessibilityTreeManager, createDesktopTest, createInteractionTester, createVisualRegressionTester, ensureDaemon, withDaemon };
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

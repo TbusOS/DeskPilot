@@ -3118,4 +3118,147 @@ declare class ScreenRecorder {
     private addToHistory;
 }
 
-export { type A11yResult, A11yTester, type A11yViolation, ARIA_ROLES, type AXIssue, type AXNode, type AXProperty, type AXQueryResult, type AccessibilityTree, AccessibilityTreeManager, Benchmark, COMMON_VIEWPORTS, type ClientInfo, type CompletionItem, type CursorPosition, DesktopTest, type Diagnostic, type DialogInvocation, type DialogOptions, type DialogResult, type DialogType, type DragResult, type EdgeFilterOptions, type EditorState, type ElementRef, type FileFilter, type FlowEdge, type FlowNode, type FlowSnapshot, FlowTester, type HttpMethod, type InputEvent, InteractionTester, type KeyboardNavResult, type LayoutType, type LayoutValidationOptions, type MemoryMeasurement, type MockDialogConfig, MonacoTester, NetworkInterceptor, type NodeFilterOptions, type PerformanceEntry, type PerformanceReport, type RecordedRequest, type RecordingOptions, type RecordingResult, type RecordingState, type RefElement, RefManager, type RefResolution, type RefSnapshot, type RequestFilterOptions, type RequestInfo, type ResourceTiming, type ResponseInfo, type ResponsiveResult, type RouteDefinition, type RouteOptions, ScreenRecorder, type ScreenshotComparison, type ScreenshotFormat, type ScreenshotHistoryEntry, type ScreenshotOptions, type ScreenshotResult, type ScrollOptions, type ScrollPerformance, type SelectionRange, Session, type SessionInfo, SessionManager, type SessionOptions, type SessionState, type SnapshotOptions, type StepStatus, type StepType, type StorageState, type StreamFrame, type StreamOptions, StreamServer, type StreamStats, TauriDialogTester, type TestRunInfo, type TestStep, type ThresholdConfig, type TimelineEvent, type TimelineFilterOptions, type TimelineState, TimelineTester, type TimingMeasurement, type TokenInfo, type Viewport, type ViolationImpact, type VirtualItem, type VirtualListState, VirtualListTester, type VisualDiffResult, type VisualRegressionOptions, VisualRegressionTester, Visualizer, type VisualizerOptions, WCAG_TAGS, createA11yTester, createAccessibilityTreeManager, createInteractionTester, createVisualRegressionTester };
+/**
+ * DaemonManager - Persistent Process for Accelerated Testing
+ *
+ * Inspired by agent-browser's daemon mode.
+ * Provides browser instance reuse for faster consecutive test runs.
+ */
+
+/** Daemon configuration */
+interface DaemonConfig {
+    /** Socket path (Unix) or port (TCP) */
+    socket?: string;
+    /** TCP port (if not using Unix socket) */
+    port?: number;
+    /** PID file path */
+    pidFile?: string;
+    /** Auto-restart on crash */
+    autoRestart?: boolean;
+    /** Max idle time before shutdown (ms) */
+    maxIdleTime?: number;
+    /** Log file path */
+    logFile?: string;
+    /** Debug mode */
+    debug?: boolean;
+}
+/** Daemon status */
+interface DaemonStatus {
+    /** Is daemon running */
+    running: boolean;
+    /** Process ID */
+    pid?: number;
+    /** Uptime in milliseconds */
+    uptime?: number;
+    /** Number of connected clients */
+    clients?: number;
+    /** Total requests served */
+    requestsServed?: number;
+    /** Current memory usage */
+    memoryUsage?: number;
+    /** Socket/port being used */
+    endpoint?: string;
+}
+/** Command sent to daemon */
+interface DaemonCommand {
+    /** Command type */
+    type: 'execute' | 'status' | 'shutdown' | 'reset';
+    /** Command ID for response matching */
+    id: string;
+    /** Command payload */
+    payload?: unknown;
+}
+/** Response from daemon */
+interface DaemonResponse {
+    /** Command ID this responds to */
+    id: string;
+    /** Success status */
+    success: boolean;
+    /** Response data */
+    data?: unknown;
+    /** Error message if failed */
+    error?: string;
+}
+/** Client connection to daemon */
+interface DaemonClient {
+    /** Send command and wait for response */
+    execute<T>(method: string, params?: unknown): Promise<T>;
+    /** Get daemon status */
+    status(): Promise<DaemonStatus>;
+    /** Disconnect from daemon */
+    disconnect(): Promise<void>;
+    /** Check if connected */
+    isConnected(): boolean;
+}
+/**
+ * DaemonManager - Manage persistent test daemon process
+ *
+ * @example
+ * ```typescript
+ * // Start daemon (usually in a separate process)
+ * const daemon = new DaemonManager({ port: 9224 });
+ * await daemon.start();
+ *
+ * // Connect from test file
+ * const client = await DaemonManager.connect({ port: 9224 });
+ * const result = await client.execute('screenshot');
+ * await client.disconnect();
+ *
+ * // Stop daemon
+ * await daemon.stop();
+ * ```
+ */
+declare class DaemonManager {
+    private config;
+    private server;
+    private clients;
+    private testInstance;
+    private startTime;
+    private requestCount;
+    private idleTimer;
+    private isRunning;
+    constructor(config?: DaemonConfig);
+    /**
+     * Start the daemon server
+     */
+    start(testInstance?: DesktopTest): Promise<void>;
+    /**
+     * Stop the daemon server
+     */
+    stop(): Promise<void>;
+    /**
+     * Get daemon status
+     */
+    getStatus(): DaemonStatus;
+    /**
+     * Set or update the test instance
+     */
+    setTestInstance(test: DesktopTest): void;
+    /**
+     * Check if daemon is running (from PID file)
+     */
+    isDaemonRunning(): Promise<boolean>;
+    /**
+     * Connect to a running daemon
+     */
+    static connect(config?: DaemonConfig): Promise<DaemonClient>;
+    /**
+     * Stop a running daemon by PID file
+     */
+    static stopByPidFile(pidFile?: string): Promise<boolean>;
+    private handleConnection;
+    private handleCommand;
+    private getEndpoint;
+    private resetIdleTimer;
+    private log;
+}
+/**
+ * Helper function to ensure daemon is running
+ */
+declare function ensureDaemon(config?: DaemonConfig): Promise<DaemonClient>;
+/**
+ * Helper function to run tests with daemon
+ */
+declare function withDaemon<T>(config: DaemonConfig, fn: (client: DaemonClient) => Promise<T>): Promise<T>;
+
+export { type A11yResult, A11yTester, type A11yViolation, ARIA_ROLES, type AXIssue, type AXNode, type AXProperty, type AXQueryResult, type AccessibilityTree, AccessibilityTreeManager, Benchmark, COMMON_VIEWPORTS, type ClientInfo, type CompletionItem, type CursorPosition, type DaemonClient, type DaemonCommand, type DaemonConfig, DaemonManager, type DaemonResponse, type DaemonStatus, DesktopTest, type Diagnostic, type DialogInvocation, type DialogOptions, type DialogResult, type DialogType, type DragResult, type EdgeFilterOptions, type EditorState, type ElementRef, type FileFilter, type FlowEdge, type FlowNode, type FlowSnapshot, FlowTester, type HttpMethod, type InputEvent, InteractionTester, type KeyboardNavResult, type LayoutType, type LayoutValidationOptions, type MemoryMeasurement, type MockDialogConfig, MonacoTester, NetworkInterceptor, type NodeFilterOptions, type PerformanceEntry, type PerformanceReport, type RecordedRequest, type RecordingOptions, type RecordingResult, type RecordingState, type RefElement, RefManager, type RefResolution, type RefSnapshot, type RequestFilterOptions, type RequestInfo, type ResourceTiming, type ResponseInfo, type ResponsiveResult, type RouteDefinition, type RouteOptions, ScreenRecorder, type ScreenshotComparison, type ScreenshotFormat, type ScreenshotHistoryEntry, type ScreenshotOptions, type ScreenshotResult, type ScrollOptions, type ScrollPerformance, type SelectionRange, Session, type SessionInfo, SessionManager, type SessionOptions, type SessionState, type SnapshotOptions, type StepStatus, type StepType, type StorageState, type StreamFrame, type StreamOptions, StreamServer, type StreamStats, TauriDialogTester, type TestRunInfo, type TestStep, type ThresholdConfig, type TimelineEvent, type TimelineFilterOptions, type TimelineState, TimelineTester, type TimingMeasurement, type TokenInfo, type Viewport, type ViolationImpact, type VirtualItem, type VirtualListState, VirtualListTester, type VisualDiffResult, type VisualRegressionOptions, VisualRegressionTester, Visualizer, type VisualizerOptions, WCAG_TAGS, createA11yTester, createAccessibilityTreeManager, createInteractionTester, createVisualRegressionTester, ensureDaemon, withDaemon };
