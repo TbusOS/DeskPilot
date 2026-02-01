@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="DeskPilot Logo" width="120" height="120">
+  <img src="assets/logo.svg?v=2" alt="DeskPilot Logo" width="120" height="120">
 </p>
 
 <h1 align="center">DeskPilot</h1>
