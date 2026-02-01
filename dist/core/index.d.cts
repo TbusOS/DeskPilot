@@ -3261,4 +3261,640 @@ declare function ensureDaemon(config?: DaemonConfig): Promise<DaemonClient>;
  */
 declare function withDaemon<T>(config: DaemonConfig, fn: (client: DaemonClient) => Promise<T>): Promise<T>;
 
-export { type A11yResult, A11yTester, type A11yViolation, ARIA_ROLES, type AXIssue, type AXNode, type AXProperty, type AXQueryResult, type AccessibilityTree, AccessibilityTreeManager, Benchmark, COMMON_VIEWPORTS, type ClientInfo, type CompletionItem, type CursorPosition, type DaemonClient, type DaemonCommand, type DaemonConfig, DaemonManager, type DaemonResponse, type DaemonStatus, DesktopTest, type Diagnostic, type DialogInvocation, type DialogOptions, type DialogResult, type DialogType, type DragResult, type EdgeFilterOptions, type EditorState, type ElementRef, type FileFilter, type FlowEdge, type FlowNode, type FlowSnapshot, FlowTester, type HttpMethod, type InputEvent, InteractionTester, type KeyboardNavResult, type LayoutType, type LayoutValidationOptions, type MemoryMeasurement, type MockDialogConfig, MonacoTester, NetworkInterceptor, type NodeFilterOptions, type PerformanceEntry, type PerformanceReport, type RecordedRequest, type RecordingOptions, type RecordingResult, type RecordingState, type RefElement, RefManager, type RefResolution, type RefSnapshot, type RequestFilterOptions, type RequestInfo, type ResourceTiming, type ResponseInfo, type ResponsiveResult, type RouteDefinition, type RouteOptions, ScreenRecorder, type ScreenshotComparison, type ScreenshotFormat, type ScreenshotHistoryEntry, type ScreenshotOptions, type ScreenshotResult, type ScrollOptions, type ScrollPerformance, type SelectionRange, Session, type SessionInfo, SessionManager, type SessionOptions, type SessionState, type SnapshotOptions, type StepStatus, type StepType, type StorageState, type StreamFrame, type StreamOptions, StreamServer, type StreamStats, TauriDialogTester, type TestRunInfo, type TestStep, type ThresholdConfig, type TimelineEvent, type TimelineFilterOptions, type TimelineState, TimelineTester, type TimingMeasurement, type TokenInfo, type Viewport, type ViolationImpact, type VirtualItem, type VirtualListState, VirtualListTester, type VisualDiffResult, type VisualRegressionOptions, VisualRegressionTester, Visualizer, type VisualizerOptions, WCAG_TAGS, createA11yTester, createAccessibilityTreeManager, createInteractionTester, createVisualRegressionTester, ensureDaemon, withDaemon };
+/**
+ * ResizablePanelTester - Test resizable panels and dividers
+ *
+ * Tests drag-to-resize functionality for IDE panels like:
+ * - File explorer width
+ * - Right panel width
+ * - Bottom panel height
+ * - Split view dividers
+ */
+
+/** Panel direction */
+type PanelDirection = 'horizontal' | 'vertical';
+/** Panel resize options */
+interface PanelResizeOptions {
+    /** Animation duration to wait (ms) */
+    animationDuration?: number;
+    /** Minimum allowed size */
+    minSize?: number;
+    /** Maximum allowed size */
+    maxSize?: number;
+}
+/** Panel state */
+interface PanelState {
+    /** Current width (for horizontal) */
+    width: number;
+    /** Current height (for vertical) */
+    height: number;
+    /** Is panel open/visible */
+    isOpen: boolean;
+    /** Is panel collapsed */
+    isCollapsed: boolean;
+    /** Panel direction */
+    direction: PanelDirection;
+    /** Computed min size */
+    minSize?: number;
+    /** Computed max size */
+    maxSize?: number;
+}
+/** Resize result */
+interface ResizeResult {
+    /** Previous size */
+    previousSize: number;
+    /** New size */
+    newSize: number;
+    /** Size change */
+    delta: number;
+    /** Was resize successful */
+    success: boolean;
+    /** Was clamped to min/max */
+    wasClamped: boolean;
+}
+/**
+ * ResizablePanelTester - Test resizable panel behavior
+ *
+ * @example
+ * ```typescript
+ * const panel = new ResizablePanelTester(test, '[data-testid="left-panel"]');
+ *
+ * // Get current state
+ * const state = await panel.getState();
+ * console.log(`Width: ${state.width}px`);
+ *
+ * // Resize to specific size
+ * await panel.resizeTo(300);
+ *
+ * // Resize by dragging
+ * await panel.drag(50); // Increase by 50px
+ * await panel.drag(-30); // Decrease by 30px
+ *
+ * // Test constraints
+ * await panel.assertMinSize(200);
+ * await panel.assertMaxSize(500);
+ *
+ * // Toggle
+ * await panel.collapse();
+ * await panel.expand();
+ * ```
+ */
+declare class ResizablePanelTester {
+    private test;
+    private selector;
+    private dividerSelector?;
+    private direction;
+    private options;
+    constructor(test: DesktopTest, selector: string, options?: {
+        dividerSelector?: string;
+        direction?: PanelDirection;
+    } & PanelResizeOptions);
+    /**
+     * Get current panel state
+     */
+    getState(): Promise<PanelState>;
+    /**
+     * Resize panel to specific size
+     */
+    resizeTo(size: number): Promise<ResizeResult>;
+    /**
+     * Resize panel by dragging the divider
+     */
+    drag(delta: number): Promise<ResizeResult>;
+    /**
+     * Collapse the panel
+     */
+    collapse(): Promise<void>;
+    /**
+     * Expand the panel
+     */
+    expand(size?: number): Promise<void>;
+    /**
+     * Toggle panel open/closed
+     */
+    toggle(): Promise<void>;
+    /**
+     * Assert panel size
+     */
+    assertSize(expectedSize: number, tolerance?: number): Promise<void>;
+    /**
+     * Assert minimum size constraint
+     */
+    assertMinSize(minSize: number): Promise<void>;
+    /**
+     * Assert maximum size constraint
+     */
+    assertMaxSize(maxSize: number): Promise<void>;
+    /**
+     * Assert panel is open/visible
+     */
+    assertOpen(): Promise<void>;
+    /**
+     * Assert panel is collapsed/hidden
+     */
+    assertCollapsed(): Promise<void>;
+    /**
+     * Measure resize performance
+     */
+    measureResizePerformance(iterations?: number): Promise<{
+        averageTime: number;
+        minTime: number;
+        maxTime: number;
+        fps: number;
+    }>;
+    private findDividerSelector;
+}
+/**
+ * Create a resizable panel tester for horizontal panels (width)
+ */
+declare function createHorizontalPanelTester(test: DesktopTest, selector: string, options?: PanelResizeOptions): ResizablePanelTester;
+/**
+ * Create a resizable panel tester for vertical panels (height)
+ */
+declare function createVerticalPanelTester(test: DesktopTest, selector: string, options?: PanelResizeOptions): ResizablePanelTester;
+
+/**
+ * StateValidator - Validate application state (Jotai/Zustand/Redux)
+ *
+ * Provides deep inspection of JavaScript state management stores
+ * for testing state transitions and data correctness.
+ */
+
+/** State assertion operators */
+type StateOperator = 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'greaterThanOrEqual' | 'lessThanOrEqual' | 'contains' | 'notContains' | 'matches' | 'notMatches' | 'isNull' | 'isNotNull' | 'isUndefined' | 'isNotUndefined' | 'isArray' | 'hasLength' | 'isEmpty' | 'isNotEmpty' | 'isTrue' | 'isFalse' | 'hasProperty' | 'typeof';
+/** State assertion */
+interface StateAssertion {
+    /** Path to the value (dot notation) */
+    path: string;
+    /** Assertion operator */
+    operator: StateOperator;
+    /** Expected value (for comparison operators) */
+    value?: unknown;
+    /** Custom error message */
+    message?: string;
+}
+/** State change */
+interface StateChange {
+    /** Path to the changed value */
+    path: string;
+    /** Previous value */
+    previousValue: unknown;
+    /** New value */
+    newValue: unknown;
+    /** Timestamp */
+    timestamp: number;
+}
+/** State snapshot */
+interface StateSnapshot {
+    /** Store name */
+    store: string;
+    /** Full state object */
+    state: Record<string, unknown>;
+    /** Timestamp */
+    timestamp: number;
+}
+/** Watch options */
+interface WatchOptions {
+    /** Paths to watch (empty = watch all) */
+    paths?: string[];
+    /** Timeout for waiting */
+    timeout?: number;
+    /** Poll interval */
+    pollInterval?: number;
+}
+/**
+ * StateValidator - Deep state inspection and validation
+ *
+ * @example
+ * ```typescript
+ * const state = new StateValidator(test);
+ *
+ * // Get state from Zustand store
+ * const analysisStore = await state.getStore('analysisStore');
+ * console.log(analysisStore.currentProject);
+ *
+ * // Assert state values
+ * await state.assert('analysisStore', [
+ *   { path: 'currentProject.files_count', operator: 'greaterThan', value: 0 },
+ *   { path: 'currentProject.indexed', operator: 'isTrue' },
+ *   { path: 'loading', operator: 'isFalse' }
+ * ]);
+ *
+ * // Watch for state changes
+ * const changes = await state.watchUntil('analysisStore',
+ *   { path: 'indexProgress.phase', operator: 'equals', value: 'complete' },
+ *   { timeout: 30000 }
+ * );
+ *
+ * // Compare snapshots
+ * const before = await state.snapshot('analysisStore');
+ * // ... perform action ...
+ * const after = await state.snapshot('analysisStore');
+ * const diff = state.diff(before, after);
+ * ```
+ */
+declare class StateValidator {
+    private test;
+    private watches;
+    private watchIntervals;
+    constructor(test: DesktopTest);
+    /**
+     * Get state from a named store
+     */
+    getStore(storeName: string): Promise<Record<string, unknown>>;
+    /**
+     * Get a specific value from a store by path
+     */
+    getValue(storeName: string, path: string): Promise<unknown>;
+    /**
+     * Assert state values
+     */
+    assert(storeName: string, assertions: StateAssertion[]): Promise<void>;
+    /**
+     * Take a snapshot of store state
+     */
+    snapshot(storeName: string): Promise<StateSnapshot>;
+    /**
+     * Compare two snapshots and return differences
+     */
+    diff(before: StateSnapshot, after: StateSnapshot): StateChange[];
+    /**
+     * Watch for state changes
+     */
+    startWatch(storeName: string, options?: WatchOptions): void;
+    /**
+     * Stop watching
+     */
+    stopWatch(storeName: string, paths?: string[]): StateChange[];
+    /**
+     * Watch until a condition is met
+     */
+    watchUntil(storeName: string, condition: StateAssertion, options?: WatchOptions): Promise<StateChange[]>;
+    /**
+     * Wait for state to stabilize (no changes for duration)
+     */
+    waitForStable(storeName: string, options?: {
+        duration?: number;
+        timeout?: number;
+        paths?: string[];
+    }): Promise<void>;
+    /**
+     * Expose a store globally for testing
+     */
+    exposeStore(storeName: string, storeAccessCode: string): Promise<void>;
+    /**
+     * Get all exposed stores
+     */
+    getExposedStores(): Promise<string[]>;
+    private getByPath;
+    private checkAssertion;
+}
+
+/**
+ * TauriIpcInterceptor - Intercept and mock Tauri IPC calls
+ *
+ * Enables testing of Tauri applications by:
+ * - Intercepting invoke() calls
+ * - Mocking command responses
+ * - Recording command history
+ * - Verifying command parameters
+ */
+
+/** Invoke call record */
+interface InvokeRecord {
+    /** Command name */
+    command: string;
+    /** Command arguments */
+    args: Record<string, unknown>;
+    /** Response (if completed) */
+    response?: unknown;
+    /** Error (if failed) */
+    error?: string;
+    /** Timestamp */
+    timestamp: number;
+    /** Duration (ms) */
+    duration?: number;
+    /** Was intercepted/mocked */
+    intercepted: boolean;
+}
+/** Mock response configuration */
+interface MockResponse {
+    /** Success response */
+    response?: unknown;
+    /** Error to throw */
+    error?: string;
+    /** Delay before response (ms) */
+    delay?: number;
+    /** Function to generate response */
+    handler?: (args: Record<string, unknown>) => unknown | Promise<unknown>;
+    /** Only mock once, then remove */
+    once?: boolean;
+    /** Match args pattern */
+    matchArgs?: Record<string, unknown>;
+}
+/** Event listener record */
+interface EventRecord {
+    /** Event name */
+    event: string;
+    /** Payload */
+    payload: unknown;
+    /** Timestamp */
+    timestamp: number;
+}
+/**
+ * TauriIpcInterceptor - Mock and verify Tauri IPC
+ *
+ * @example
+ * ```typescript
+ * const ipc = new TauriIpcInterceptor(test);
+ *
+ * // Setup interceptor
+ * await ipc.setup();
+ *
+ * // Mock a command
+ * await ipc.mock('open_project', {
+ *   response: { files_count: 100, functions_count: 500 }
+ * });
+ *
+ * // Mock with handler
+ * await ipc.mock('get_file_content', {
+ *   handler: (args) => ({ content: `Content of ${args.path}` })
+ * });
+ *
+ * // ... run test ...
+ *
+ * // Verify calls
+ * await ipc.assertInvoked('open_project', { times: 1 });
+ * await ipc.assertInvokedWith('get_file_content', { path: '/test.c' });
+ *
+ * // Get call history
+ * const history = await ipc.getHistory();
+ *
+ * // Cleanup
+ * await ipc.teardown();
+ * ```
+ */
+declare class TauriIpcInterceptor {
+    private test;
+    private isSetup;
+    constructor(test: DesktopTest);
+    /**
+     * Setup the interceptor (call once before mocking)
+     */
+    setup(): Promise<void>;
+    /**
+     * Remove interceptor and restore original functions
+     */
+    teardown(): Promise<void>;
+    /**
+     * Mock a Tauri command
+     */
+    mock(command: string, config: MockResponse): Promise<void>;
+    /**
+     * Remove a mock
+     */
+    unmock(command: string): Promise<void>;
+    /**
+     * Clear all mocks
+     */
+    clearMocks(): Promise<void>;
+    /**
+     * Get invoke history
+     */
+    getHistory(filter?: {
+        command?: string;
+    }): Promise<InvokeRecord[]>;
+    /**
+     * Clear invoke history
+     */
+    clearHistory(): Promise<void>;
+    /**
+     * Get the last invoke call
+     */
+    getLastInvoke(command?: string): Promise<InvokeRecord | null>;
+    /**
+     * Wait for a command to be invoked
+     */
+    waitForInvoke(command: string, options?: {
+        timeout?: number;
+        matchArgs?: Record<string, unknown>;
+    }): Promise<InvokeRecord>;
+    /**
+     * Assert that a command was invoked
+     */
+    assertInvoked(command: string, options?: {
+        times?: number;
+        atLeast?: number;
+        atMost?: number;
+    }): Promise<void>;
+    /**
+     * Assert that a command was invoked with specific arguments
+     */
+    assertInvokedWith(command: string, expectedArgs: Record<string, unknown>): Promise<void>;
+    /**
+     * Assert that a command was not invoked
+     */
+    assertNotInvoked(command: string): Promise<void>;
+    /**
+     * Emit a Tauri event (for testing event listeners)
+     */
+    emit(event: string, payload: unknown): Promise<void>;
+    /**
+     * Get event history
+     */
+    getEventHistory(filter?: {
+        event?: string;
+    }): Promise<EventRecord[]>;
+    /**
+     * Create a mock for simulating project open
+     */
+    mockOpenProject(projectInfo: {
+        path: string;
+        files_count: number;
+        functions_count: number;
+        structs_count: number;
+    }): Promise<void>;
+    /**
+     * Create a mock for simulating empty project (the bug case)
+     */
+    mockEmptyProject(path: string): Promise<void>;
+    /**
+     * Create a mock for API error
+     */
+    mockError(command: string, errorMessage: string): Promise<void>;
+    /**
+     * Create a mock with delay (for testing loading states)
+     */
+    mockWithDelay(command: string, response: unknown, delayMs: number): Promise<void>;
+    private ensureSetup;
+}
+
+/**
+ * ThemeTester - Test theme switching and CSS variables
+ *
+ * Tests dark/light mode switching and validates CSS custom properties.
+ */
+
+/** Theme name */
+type ThemeName = 'light' | 'dark' | 'system' | string;
+/** CSS variable value */
+interface CSSVariableValue {
+    /** Variable name (without --) */
+    name: string;
+    /** Computed value */
+    value: string;
+    /** Raw value (from stylesheet) */
+    rawValue?: string;
+}
+/** Color information */
+interface ColorInfo {
+    /** Hex value */
+    hex: string;
+    /** RGB values */
+    rgb: {
+        r: number;
+        g: number;
+        b: number;
+    };
+    /** HSL values */
+    hsl: {
+        h: number;
+        s: number;
+        l: number;
+    };
+    /** Alpha */
+    alpha: number;
+    /** Is dark color (luminance < 0.5) */
+    isDark: boolean;
+}
+/** Theme state */
+interface ThemeState {
+    /** Current theme name */
+    current: ThemeName;
+    /** Available themes */
+    available: ThemeName[];
+    /** System preference */
+    systemPreference: 'light' | 'dark';
+    /** Is using system theme */
+    isSystem: boolean;
+    /** Root element class */
+    rootClass: string;
+    /** Data-theme attribute */
+    dataTheme?: string;
+}
+/** Theme comparison result */
+interface ThemeComparison {
+    /** Variables that differ */
+    differences: Array<{
+        variable: string;
+        theme1Value: string;
+        theme2Value: string;
+    }>;
+    /** Variables that are the same */
+    same: Array<{
+        variable: string;
+        value: string;
+    }>;
+}
+/**
+ * ThemeTester - Test theme functionality
+ *
+ * @example
+ * ```typescript
+ * const theme = new ThemeTester(test);
+ *
+ * // Get current theme
+ * const state = await theme.getState();
+ * console.log(`Current theme: ${state.current}`);
+ *
+ * // Switch theme
+ * await theme.switch('dark');
+ * await theme.assertCurrentTheme('dark');
+ *
+ * // Verify CSS variables
+ * await theme.assertVariable('--bg-primary', '#1a1a1a');
+ *
+ * // Check contrast
+ * const contrast = await theme.checkContrast('--text-primary', '--bg-primary');
+ * console.log(`Contrast ratio: ${contrast.ratio}`);
+ * ```
+ */
+declare class ThemeTester {
+    private test;
+    private themeVariablePrefix;
+    constructor(test: DesktopTest, options?: {
+        variablePrefix?: string;
+    });
+    /**
+     * Get current theme state
+     */
+    getState(): Promise<ThemeState>;
+    /**
+     * Switch to a different theme
+     */
+    switch(theme: ThemeName): Promise<void>;
+    /**
+     * Toggle between light and dark
+     */
+    toggle(): Promise<ThemeName>;
+    /**
+     * Get a CSS variable value
+     */
+    getVariable(name: string): Promise<CSSVariableValue>;
+    /**
+     * Get multiple CSS variables
+     */
+    getVariables(names: string[]): Promise<CSSVariableValue[]>;
+    /**
+     * Get all CSS variables with a prefix
+     */
+    getAllVariables(prefix?: string): Promise<CSSVariableValue[]>;
+    /**
+     * Parse a color value to ColorInfo
+     */
+    parseColor(value: string): Promise<ColorInfo>;
+    /**
+     * Check contrast ratio between two colors
+     */
+    checkContrast(foregroundVar: string, backgroundVar: string): Promise<{
+        ratio: number;
+        meetsAA: boolean;
+        meetsAAA: boolean;
+        meetsAALarge: boolean;
+        meetsAAALarge: boolean;
+    }>;
+    /**
+     * Compare two themes
+     */
+    compare(theme1: ThemeName, theme2: ThemeName): Promise<ThemeComparison>;
+    /**
+     * Assert current theme
+     */
+    assertCurrentTheme(expected: ThemeName): Promise<void>;
+    /**
+     * Assert CSS variable value
+     */
+    assertVariable(name: string, expected: string): Promise<void>;
+    /**
+     * Assert color is dark/light
+     */
+    assertColorIsDark(variableName: string): Promise<void>;
+    /**
+     * Assert color is light
+     */
+    assertColorIsLight(variableName: string): Promise<void>;
+    /**
+     * Assert contrast meets WCAG AA
+     */
+    assertContrastAA(foregroundVar: string, backgroundVar: string): Promise<void>;
+    /**
+     * Assert contrast meets WCAG AAA
+     */
+    assertContrastAAA(foregroundVar: string, backgroundVar: string): Promise<void>;
+    /**
+     * Take a theme screenshot for visual comparison
+     */
+    captureTheme(theme: ThemeName, outputPath?: string): Promise<string>;
+}
+
+export { type A11yResult, A11yTester, type A11yViolation, ARIA_ROLES, type AXIssue, type AXNode, type AXProperty, type AXQueryResult, type AccessibilityTree, AccessibilityTreeManager, Benchmark, COMMON_VIEWPORTS, type CSSVariableValue, type ClientInfo, type ColorInfo, type CompletionItem, type CursorPosition, type DaemonClient, type DaemonCommand, type DaemonConfig, DaemonManager, type DaemonResponse, type DaemonStatus, DesktopTest, type Diagnostic, type DialogInvocation, type DialogOptions, type DialogResult, type DialogType, type DragResult, type EdgeFilterOptions, type EditorState, type ElementRef, type EventRecord, type FileFilter, type FlowEdge, type FlowNode, type FlowSnapshot, FlowTester, type HttpMethod, type InputEvent, InteractionTester, type InvokeRecord, type KeyboardNavResult, type LayoutType, type LayoutValidationOptions, type MemoryMeasurement, type MockDialogConfig, type MockResponse, MonacoTester, NetworkInterceptor, type NodeFilterOptions, type PanelDirection, type PanelResizeOptions, type PanelState, type PerformanceEntry, type PerformanceReport, type RecordedRequest, type RecordingOptions, type RecordingResult, type RecordingState, type RefElement, RefManager, type RefResolution, type RefSnapshot, type RequestFilterOptions, type RequestInfo, ResizablePanelTester, type ResizeResult, type ResourceTiming, type ResponseInfo, type ResponsiveResult, type RouteDefinition, type RouteOptions, ScreenRecorder, type ScreenshotComparison, type ScreenshotFormat, type ScreenshotHistoryEntry, type ScreenshotOptions, type ScreenshotResult, type ScrollOptions, type ScrollPerformance, type SelectionRange, Session, type SessionInfo, SessionManager, type SessionOptions, type SessionState, type SnapshotOptions, type StateAssertion, type StateChange, type StateOperator, type StateSnapshot, StateValidator, type StepStatus, type StepType, type StorageState, type StreamFrame, type StreamOptions, StreamServer, type StreamStats, TauriDialogTester, TauriIpcInterceptor, type TestRunInfo, type TestStep, type ThemeComparison, type ThemeName, type ThemeState, ThemeTester, type ThresholdConfig, type TimelineEvent, type TimelineFilterOptions, type TimelineState, TimelineTester, type TimingMeasurement, type TokenInfo, type Viewport, type ViolationImpact, type VirtualItem, type VirtualListState, VirtualListTester, type VisualDiffResult, type VisualRegressionOptions, VisualRegressionTester, Visualizer, type VisualizerOptions, WCAG_TAGS, type WatchOptions, createA11yTester, createAccessibilityTreeManager, createHorizontalPanelTester, createInteractionTester, createVerticalPanelTester, createVisualRegressionTester, ensureDaemon, withDaemon };

@@ -187,3 +187,42 @@ export {
   type DaemonResponse,
   type DaemonClient,
 } from './daemon.js';
+
+// Resizable Panel Tester
+export {
+  ResizablePanelTester,
+  createHorizontalPanelTester,
+  createVerticalPanelTester,
+  type PanelDirection,
+  type PanelResizeOptions,
+  type PanelState,
+  type ResizeResult,
+} from './resizable-panel-tester.js';
+
+// State Validator (Jotai/Zustand/Redux)
+export {
+  StateValidator,
+  type StateOperator,
+  type StateAssertion,
+  type StateChange,
+  type StateSnapshot,
+  type WatchOptions,
+} from './state-validator.js';
+
+// Tauri IPC Interceptor
+export {
+  TauriIpcInterceptor,
+  type InvokeRecord,
+  type MockResponse,
+  type EventRecord,
+} from './tauri-ipc-interceptor.js';
+
+// Theme Tester
+export {
+  ThemeTester,
+  type ThemeName,
+  type CSSVariableValue,
+  type ColorInfo,
+  type ThemeState,
+  type ThemeComparison,
+} from './theme-tester.js';

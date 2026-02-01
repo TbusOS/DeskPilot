@@ -10031,6 +10031,1462 @@ async function withDaemon(config, fn) {
   }
 }
 
+// src/core/resizable-panel-tester.ts
+var ResizablePanelTester = class {
+  test;
+  selector;
+  dividerSelector;
+  direction;
+  options;
+  constructor(test, selector, options = {}) {
+    this.test = test;
+    this.selector = selector;
+    this.dividerSelector = options.dividerSelector;
+    this.direction = options.direction || "horizontal";
+    this.options = {
+      animationDuration: options.animationDuration || 300,
+      minSize: options.minSize,
+      maxSize: options.maxSize
+    };
+  }
+  /**
+   * Get current panel state
+   */
+  async getState() {
+    const result = await this.test.evaluate(`
+      (() => {
+        const panel = document.querySelector('${this.selector}');
+        if (!panel) return null;
+        
+        const rect = panel.getBoundingClientRect();
+        const style = getComputedStyle(panel);
+        
+        return {
+          width: rect.width,
+          height: rect.height,
+          isOpen: rect.width > 0 && rect.height > 0,
+          isCollapsed: rect.width === 0 || rect.height === 0,
+          direction: '${this.direction}',
+          minSize: parseInt(style.minWidth) || parseInt(style.minHeight) || undefined,
+          maxSize: parseInt(style.maxWidth) || parseInt(style.maxHeight) || undefined
+        };
+      })()
+    `);
+    if (!result) {
+      throw new Error(`Panel not found: ${this.selector}`);
+    }
+    return result;
+  }
+  /**
+   * Resize panel to specific size
+   */
+  async resizeTo(size) {
+    const state = await this.getState();
+    const currentSize = this.direction === "horizontal" ? state.width : state.height;
+    const delta = size - currentSize;
+    return this.drag(delta);
+  }
+  /**
+   * Resize panel by dragging the divider
+   */
+  async drag(delta) {
+    const state = await this.getState();
+    const currentSize = this.direction === "horizontal" ? state.width : state.height;
+    const dividerSelector = this.dividerSelector || this.findDividerSelector();
+    const dividerPos = await this.test.evaluate(`
+      (() => {
+        const divider = document.querySelector('${dividerSelector}');
+        if (!divider) return null;
+        const rect = divider.getBoundingClientRect();
+        return {
+          x: rect.x + rect.width / 2,
+          y: rect.y + rect.height / 2
+        };
+      })()
+    `);
+    if (!dividerPos) {
+      await this.test.evaluate(`
+        (() => {
+          const panel = document.querySelector('${this.selector}');
+          if (!panel) return;
+          
+          if ('${this.direction}' === 'horizontal') {
+            panel.style.width = '${currentSize + delta}px';
+          } else {
+            panel.style.height = '${currentSize + delta}px';
+          }
+        })()
+      `);
+    } else {
+      const startX = dividerPos.x;
+      const startY = dividerPos.y;
+      const endX = this.direction === "horizontal" ? startX + delta : startX;
+      const endY = this.direction === "vertical" ? startY + delta : startY;
+      await this.test.evaluate(`
+        (() => {
+          const divider = document.querySelector('${dividerSelector}');
+          if (!divider) return;
+          
+          // Dispatch mouse events
+          divider.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            clientX: ${startX},
+            clientY: ${startY}
+          }));
+          
+          document.dispatchEvent(new MouseEvent('mousemove', {
+            bubbles: true,
+            clientX: ${endX},
+            clientY: ${endY}
+          }));
+          
+          document.dispatchEvent(new MouseEvent('mouseup', {
+            bubbles: true,
+            clientX: ${endX},
+            clientY: ${endY}
+          }));
+        })()
+      `);
+    }
+    await new Promise((r) => setTimeout(r, this.options.animationDuration));
+    const newState = await this.getState();
+    const newSize = this.direction === "horizontal" ? newState.width : newState.height;
+    const actualDelta = newSize - currentSize;
+    return {
+      previousSize: currentSize,
+      newSize,
+      delta: actualDelta,
+      success: Math.abs(actualDelta) > 0,
+      wasClamped: Math.abs(actualDelta - delta) > 1
+    };
+  }
+  /**
+   * Collapse the panel
+   */
+  async collapse() {
+    const state = await this.getState();
+    if (state.isCollapsed) return;
+    const hasButton = await this.test.evaluate(`
+      (() => {
+        const panel = document.querySelector('${this.selector}');
+        if (!panel) return false;
+        const button = panel.querySelector('[data-collapse], [aria-label*="collapse"], [aria-label*="\u9690\u85CF"]');
+        if (button) {
+          button.click();
+          return true;
+        }
+        return false;
+      })()
+    `);
+    if (!hasButton) {
+      await this.resizeTo(0);
+    }
+    await new Promise((r) => setTimeout(r, this.options.animationDuration));
+  }
+  /**
+   * Expand the panel
+   */
+  async expand(size) {
+    const state = await this.getState();
+    if (!state.isCollapsed && state.isOpen) return;
+    const hasButton = await this.test.evaluate(`
+      (() => {
+        const panel = document.querySelector('${this.selector}');
+        const parent = panel?.parentElement;
+        const button = parent?.querySelector('[data-expand], [aria-label*="expand"], [aria-label*="\u663E\u793A"]');
+        if (button) {
+          button.click();
+          return true;
+        }
+        return false;
+      })()
+    `);
+    if (!hasButton && size) {
+      await this.resizeTo(size);
+    }
+    await new Promise((r) => setTimeout(r, this.options.animationDuration));
+  }
+  /**
+   * Toggle panel open/closed
+   */
+  async toggle() {
+    const state = await this.getState();
+    if (state.isOpen) {
+      await this.collapse();
+    } else {
+      await this.expand();
+    }
+  }
+  /**
+   * Assert panel size
+   */
+  async assertSize(expectedSize, tolerance = 5) {
+    const state = await this.getState();
+    const actualSize = this.direction === "horizontal" ? state.width : state.height;
+    if (Math.abs(actualSize - expectedSize) > tolerance) {
+      throw new Error(
+        `Panel size assertion failed: expected ${expectedSize}\xB1${tolerance}, got ${actualSize}`
+      );
+    }
+  }
+  /**
+   * Assert minimum size constraint
+   */
+  async assertMinSize(minSize) {
+    const state = await this.getState();
+    const currentSize = this.direction === "horizontal" ? state.width : state.height;
+    await this.resizeTo(minSize - 50);
+    const newState = await this.getState();
+    const newSize = this.direction === "horizontal" ? newState.width : newState.height;
+    if (newSize < minSize - 5) {
+      throw new Error(
+        `Min size constraint not enforced: expected >= ${minSize}, got ${newSize}`
+      );
+    }
+    await this.resizeTo(currentSize);
+  }
+  /**
+   * Assert maximum size constraint
+   */
+  async assertMaxSize(maxSize) {
+    const state = await this.getState();
+    const currentSize = this.direction === "horizontal" ? state.width : state.height;
+    await this.resizeTo(maxSize + 100);
+    const newState = await this.getState();
+    const newSize = this.direction === "horizontal" ? newState.width : newState.height;
+    if (newSize > maxSize + 5) {
+      throw new Error(
+        `Max size constraint not enforced: expected <= ${maxSize}, got ${newSize}`
+      );
+    }
+    await this.resizeTo(currentSize);
+  }
+  /**
+   * Assert panel is open/visible
+   */
+  async assertOpen() {
+    const state = await this.getState();
+    if (!state.isOpen) {
+      throw new Error("Panel is not open");
+    }
+  }
+  /**
+   * Assert panel is collapsed/hidden
+   */
+  async assertCollapsed() {
+    const state = await this.getState();
+    if (!state.isCollapsed) {
+      throw new Error("Panel is not collapsed");
+    }
+  }
+  /**
+   * Measure resize performance
+   */
+  async measureResizePerformance(iterations = 10) {
+    const times = [];
+    const state = await this.getState();
+    const baseSize = this.direction === "horizontal" ? state.width : state.height;
+    for (let i = 0; i < iterations; i++) {
+      const delta = i % 2 === 0 ? 50 : -50;
+      const start = Date.now();
+      await this.drag(delta);
+      times.push(Date.now() - start);
+    }
+    await this.resizeTo(baseSize);
+    const avg = times.reduce((a, b) => a + b, 0) / times.length;
+    return {
+      averageTime: avg,
+      minTime: Math.min(...times),
+      maxTime: Math.max(...times),
+      fps: 1e3 / avg
+    };
+  }
+  // Private methods
+  findDividerSelector() {
+    const patterns = [
+      `${this.selector} + [class*="divider"]`,
+      `${this.selector} + [class*="resize"]`,
+      `${this.selector} > [class*="divider"]:last-child`,
+      `${this.selector} ~ [class*="divider"]`,
+      "[data-resize-handle]",
+      ".resize-handle",
+      ".divider"
+    ];
+    return patterns[0];
+  }
+};
+function createHorizontalPanelTester(test, selector, options) {
+  return new ResizablePanelTester(test, selector, { ...options, direction: "horizontal" });
+}
+function createVerticalPanelTester(test, selector, options) {
+  return new ResizablePanelTester(test, selector, { ...options, direction: "vertical" });
+}
+
+// src/core/state-validator.ts
+var StateValidator = class {
+  test;
+  watches = /* @__PURE__ */ new Map();
+  watchIntervals = /* @__PURE__ */ new Map();
+  constructor(test) {
+    this.test = test;
+  }
+  /**
+   * Get state from a named store
+   */
+  async getStore(storeName) {
+    const state = await this.test.evaluate(`
+      (() => {
+        // Try Zustand
+        if (window.__ZUSTAND_STORES__ && window.__ZUSTAND_STORES__['${storeName}']) {
+          return window.__ZUSTAND_STORES__['${storeName}'].getState();
+        }
+        
+        // Try to find Zustand store by naming convention
+        const zustandKey = Object.keys(window).find(k => 
+          k.includes('${storeName}') && 
+          typeof window[k]?.getState === 'function'
+        );
+        if (zustandKey) {
+          return window[zustandKey].getState();
+        }
+        
+        // Try Redux
+        if (window.__REDUX_STORE__) {
+          const fullState = window.__REDUX_STORE__.getState();
+          return fullState['${storeName}'] || fullState;
+        }
+        
+        // Try Jotai (harder, atoms are per-component)
+        if (window.__JOTAI_ATOMS__) {
+          return window.__JOTAI_ATOMS__['${storeName}'];
+        }
+        
+        // Try global variable
+        if (window['${storeName}']) {
+          return window['${storeName}'];
+        }
+        
+        // Try React DevTools
+        if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+          // This would require more complex traversal
+        }
+        
+        return null;
+      })()
+    `);
+    if (!state) {
+      throw new Error(`Store not found: ${storeName}. Make sure it's exposed globally.`);
+    }
+    return state;
+  }
+  /**
+   * Get a specific value from a store by path
+   */
+  async getValue(storeName, path5) {
+    const store = await this.getStore(storeName);
+    return this.getByPath(store, path5);
+  }
+  /**
+   * Assert state values
+   */
+  async assert(storeName, assertions) {
+    const store = await this.getStore(storeName);
+    const failures = [];
+    for (const assertion of assertions) {
+      const value = this.getByPath(store, assertion.path);
+      const result = this.checkAssertion(value, assertion);
+      if (!result.passed) {
+        failures.push(
+          assertion.message || `${storeName}.${assertion.path}: ${result.message} (got: ${JSON.stringify(value)})`
+        );
+      }
+    }
+    if (failures.length > 0) {
+      throw new Error(`State assertions failed:
+${failures.join("\n")}`);
+    }
+  }
+  /**
+   * Take a snapshot of store state
+   */
+  async snapshot(storeName) {
+    const state = await this.getStore(storeName);
+    return {
+      store: storeName,
+      state: JSON.parse(JSON.stringify(state)),
+      timestamp: Date.now()
+    };
+  }
+  /**
+   * Compare two snapshots and return differences
+   */
+  diff(before, after) {
+    const changes = [];
+    const findChanges = (prev, next, path5) => {
+      if (prev === next) return;
+      if (typeof prev !== typeof next) {
+        changes.push({
+          path: path5,
+          previousValue: prev,
+          newValue: next,
+          timestamp: after.timestamp
+        });
+        return;
+      }
+      if (typeof prev === "object" && prev !== null && next !== null) {
+        const prevObj = prev;
+        const nextObj = next;
+        const allKeys = /* @__PURE__ */ new Set([...Object.keys(prevObj), ...Object.keys(nextObj)]);
+        for (const key of allKeys) {
+          findChanges(prevObj[key], nextObj[key], path5 ? `${path5}.${key}` : key);
+        }
+      } else if (prev !== next) {
+        changes.push({
+          path: path5,
+          previousValue: prev,
+          newValue: next,
+          timestamp: after.timestamp
+        });
+      }
+    };
+    findChanges(before.state, after.state, "");
+    return changes;
+  }
+  /**
+   * Watch for state changes
+   */
+  startWatch(storeName, options = {}) {
+    const { paths = [], pollInterval = 100 } = options;
+    const key = `${storeName}-${paths.join(",")}`;
+    if (this.watchIntervals.has(key)) {
+      return;
+    }
+    this.watches.set(key, []);
+    let previousState = null;
+    const interval = setInterval(async () => {
+      try {
+        const currentState = await this.getStore(storeName);
+        if (previousState) {
+          const changes = this.diff(
+            { store: storeName, state: previousState, timestamp: Date.now() - pollInterval },
+            { store: storeName, state: currentState, timestamp: Date.now() }
+          );
+          const filteredChanges = paths.length > 0 ? changes.filter((c) => paths.some((p) => c.path.startsWith(p))) : changes;
+          if (filteredChanges.length > 0) {
+            const existingChanges = this.watches.get(key) || [];
+            this.watches.set(key, [...existingChanges, ...filteredChanges]);
+          }
+        }
+        previousState = JSON.parse(JSON.stringify(currentState));
+      } catch {
+      }
+    }, pollInterval);
+    this.watchIntervals.set(key, interval);
+  }
+  /**
+   * Stop watching
+   */
+  stopWatch(storeName, paths = []) {
+    const key = `${storeName}-${paths.join(",")}`;
+    const interval = this.watchIntervals.get(key);
+    if (interval) {
+      clearInterval(interval);
+      this.watchIntervals.delete(key);
+    }
+    const changes = this.watches.get(key) || [];
+    this.watches.delete(key);
+    return changes;
+  }
+  /**
+   * Watch until a condition is met
+   */
+  async watchUntil(storeName, condition, options = {}) {
+    const { timeout = 1e4, pollInterval = 100 } = options;
+    const changes = [];
+    let previousState = null;
+    return new Promise((resolve2, reject) => {
+      const startTime = Date.now();
+      const checkCondition = async () => {
+        if (Date.now() - startTime > timeout) {
+          clearInterval(interval);
+          reject(new Error(
+            `Timeout waiting for ${storeName}.${condition.path} to ${condition.operator} ${JSON.stringify(condition.value)}`
+          ));
+          return;
+        }
+        try {
+          const currentState = await this.getStore(storeName);
+          if (previousState) {
+            const newChanges = this.diff(
+              { store: storeName, state: previousState, timestamp: Date.now() - pollInterval },
+              { store: storeName, state: currentState, timestamp: Date.now() }
+            );
+            changes.push(...newChanges);
+          }
+          previousState = JSON.parse(JSON.stringify(currentState));
+          const value = this.getByPath(currentState, condition.path);
+          const result = this.checkAssertion(value, condition);
+          if (result.passed) {
+            clearInterval(interval);
+            resolve2(changes);
+          }
+        } catch {
+        }
+      };
+      const interval = setInterval(checkCondition, pollInterval);
+      checkCondition();
+    });
+  }
+  /**
+   * Wait for state to stabilize (no changes for duration)
+   */
+  async waitForStable(storeName, options = {}) {
+    const { duration = 500, timeout = 1e4, paths = [] } = options;
+    const startTime = Date.now();
+    let lastChangeTime = Date.now();
+    let previousState = null;
+    return new Promise((resolve2, reject) => {
+      const interval = setInterval(async () => {
+        if (Date.now() - startTime > timeout) {
+          clearInterval(interval);
+          reject(new Error(`Timeout waiting for state to stabilize`));
+          return;
+        }
+        try {
+          const currentState = await this.getStore(storeName);
+          if (previousState) {
+            const changes = this.diff(
+              { store: storeName, state: previousState, timestamp: 0 },
+              { store: storeName, state: currentState, timestamp: 0 }
+            );
+            const relevantChanges = paths.length > 0 ? changes.filter((c) => paths.some((p) => c.path.startsWith(p))) : changes;
+            if (relevantChanges.length > 0) {
+              lastChangeTime = Date.now();
+            }
+          }
+          previousState = JSON.parse(JSON.stringify(currentState));
+          if (Date.now() - lastChangeTime >= duration) {
+            clearInterval(interval);
+            resolve2();
+          }
+        } catch {
+        }
+      }, 50);
+    });
+  }
+  /**
+   * Expose a store globally for testing
+   */
+  async exposeStore(storeName, storeAccessCode) {
+    await this.test.evaluate(`
+      (() => {
+        window.__ZUSTAND_STORES__ = window.__ZUSTAND_STORES__ || {};
+        window.__ZUSTAND_STORES__['${storeName}'] = ${storeAccessCode};
+      })()
+    `);
+  }
+  /**
+   * Get all exposed stores
+   */
+  async getExposedStores() {
+    const stores = await this.test.evaluate(`
+      (() => {
+        const stores = [];
+        
+        // Check ZUSTAND_STORES
+        if (window.__ZUSTAND_STORES__) {
+          stores.push(...Object.keys(window.__ZUSTAND_STORES__));
+        }
+        
+        // Check global variables that look like stores
+        for (const key of Object.keys(window)) {
+          if (typeof window[key]?.getState === 'function') {
+            stores.push(key);
+          }
+        }
+        
+        return [...new Set(stores)];
+      })()
+    `);
+    return stores;
+  }
+  // Private methods
+  getByPath(obj, path5) {
+    const parts = path5.split(".");
+    let current = obj;
+    for (const part of parts) {
+      if (current === null || current === void 0) {
+        return void 0;
+      }
+      current = current[part];
+    }
+    return current;
+  }
+  checkAssertion(value, assertion) {
+    const { operator, value: expected } = assertion;
+    switch (operator) {
+      case "equals":
+        return {
+          passed: JSON.stringify(value) === JSON.stringify(expected),
+          message: `expected to equal ${JSON.stringify(expected)}`
+        };
+      case "notEquals":
+        return {
+          passed: JSON.stringify(value) !== JSON.stringify(expected),
+          message: `expected to not equal ${JSON.stringify(expected)}`
+        };
+      case "greaterThan":
+        return {
+          passed: value > expected,
+          message: `expected to be greater than ${expected}`
+        };
+      case "lessThan":
+        return {
+          passed: value < expected,
+          message: `expected to be less than ${expected}`
+        };
+      case "greaterThanOrEqual":
+        return {
+          passed: value >= expected,
+          message: `expected to be greater than or equal to ${expected}`
+        };
+      case "lessThanOrEqual":
+        return {
+          passed: value <= expected,
+          message: `expected to be less than or equal to ${expected}`
+        };
+      case "contains":
+        if (typeof value === "string") {
+          return {
+            passed: value.includes(expected),
+            message: `expected to contain "${expected}"`
+          };
+        }
+        if (Array.isArray(value)) {
+          return {
+            passed: value.includes(expected),
+            message: `expected array to contain ${JSON.stringify(expected)}`
+          };
+        }
+        return { passed: false, message: "value is not string or array" };
+      case "notContains":
+        if (typeof value === "string") {
+          return {
+            passed: !value.includes(expected),
+            message: `expected to not contain "${expected}"`
+          };
+        }
+        if (Array.isArray(value)) {
+          return {
+            passed: !value.includes(expected),
+            message: `expected array to not contain ${JSON.stringify(expected)}`
+          };
+        }
+        return { passed: false, message: "value is not string or array" };
+      case "matches":
+        return {
+          passed: new RegExp(expected).test(value),
+          message: `expected to match ${expected}`
+        };
+      case "notMatches":
+        return {
+          passed: !new RegExp(expected).test(value),
+          message: `expected to not match ${expected}`
+        };
+      case "isNull":
+        return { passed: value === null, message: "expected to be null" };
+      case "isNotNull":
+        return { passed: value !== null, message: "expected to not be null" };
+      case "isUndefined":
+        return { passed: value === void 0, message: "expected to be undefined" };
+      case "isNotUndefined":
+        return { passed: value !== void 0, message: "expected to not be undefined" };
+      case "isArray":
+        return { passed: Array.isArray(value), message: "expected to be an array" };
+      case "hasLength":
+        return {
+          passed: Array.isArray(value) && value.length === expected,
+          message: `expected array to have length ${expected}`
+        };
+      case "isEmpty":
+        if (Array.isArray(value)) {
+          return { passed: value.length === 0, message: "expected array to be empty" };
+        }
+        if (typeof value === "string") {
+          return { passed: value.length === 0, message: "expected string to be empty" };
+        }
+        if (typeof value === "object" && value !== null) {
+          return {
+            passed: Object.keys(value).length === 0,
+            message: "expected object to be empty"
+          };
+        }
+        return { passed: false, message: "value is not array, string, or object" };
+      case "isNotEmpty":
+        if (Array.isArray(value)) {
+          return { passed: value.length > 0, message: "expected array to not be empty" };
+        }
+        if (typeof value === "string") {
+          return { passed: value.length > 0, message: "expected string to not be empty" };
+        }
+        if (typeof value === "object" && value !== null) {
+          return {
+            passed: Object.keys(value).length > 0,
+            message: "expected object to not be empty"
+          };
+        }
+        return { passed: false, message: "value is not array, string, or object" };
+      case "isTrue":
+        return { passed: value === true, message: "expected to be true" };
+      case "isFalse":
+        return { passed: value === false, message: "expected to be false" };
+      case "hasProperty":
+        return {
+          passed: typeof value === "object" && value !== null && expected in value,
+          message: `expected to have property "${expected}"`
+        };
+      case "typeof":
+        return {
+          passed: typeof value === expected,
+          message: `expected typeof to be "${expected}"`
+        };
+      default:
+        return { passed: false, message: `Unknown operator: ${operator}` };
+    }
+  }
+};
+
+// src/core/tauri-ipc-interceptor.ts
+var TauriIpcInterceptor = class {
+  test;
+  isSetup = false;
+  constructor(test) {
+    this.test = test;
+  }
+  /**
+   * Setup the interceptor (call once before mocking)
+   */
+  async setup() {
+    if (this.isSetup) return;
+    await this.test.evaluate(`
+      (() => {
+        // Store original functions
+        if (!window.__TAURI_IPC_ORIGINAL__) {
+          window.__TAURI_IPC_ORIGINAL__ = {
+            invoke: window.__TAURI__?.invoke || window.__TAURI_INVOKE__,
+            listen: window.__TAURI__?.event?.listen
+          };
+        }
+        
+        // Initialize storage
+        window.__TAURI_IPC_MOCKS__ = window.__TAURI_IPC_MOCKS__ || {};
+        window.__TAURI_IPC_HISTORY__ = window.__TAURI_IPC_HISTORY__ || [];
+        window.__TAURI_EVENT_HISTORY__ = window.__TAURI_EVENT_HISTORY__ || [];
+        
+        // Intercept invoke
+        const interceptedInvoke = async (cmd, args = {}) => {
+          const startTime = Date.now();
+          const record = {
+            command: cmd,
+            args: args,
+            timestamp: startTime,
+            intercepted: false
+          };
+          
+          try {
+            // Check for mock
+            const mock = window.__TAURI_IPC_MOCKS__[cmd];
+            if (mock) {
+              record.intercepted = true;
+              
+              // Check args match
+              if (mock.matchArgs) {
+                const matches = Object.entries(mock.matchArgs).every(
+                  ([key, value]) => JSON.stringify(args[key]) === JSON.stringify(value)
+                );
+                if (!matches) {
+                  // Don't use mock, call original
+                  record.intercepted = false;
+                }
+              }
+              
+              if (record.intercepted) {
+                // Apply delay
+                if (mock.delay) {
+                  await new Promise(r => setTimeout(r, mock.delay));
+                }
+                
+                // Handle mock
+                if (mock.error) {
+                  record.error = mock.error;
+                  record.duration = Date.now() - startTime;
+                  window.__TAURI_IPC_HISTORY__.push(record);
+                  
+                  // Remove if once
+                  if (mock.once) delete window.__TAURI_IPC_MOCKS__[cmd];
+                  
+                  throw new Error(mock.error);
+                }
+                
+                let response;
+                if (mock.handler) {
+                  response = await mock.handler(args);
+                } else {
+                  response = mock.response;
+                }
+                
+                record.response = response;
+                record.duration = Date.now() - startTime;
+                window.__TAURI_IPC_HISTORY__.push(record);
+                
+                // Remove if once
+                if (mock.once) delete window.__TAURI_IPC_MOCKS__[cmd];
+                
+                return response;
+              }
+            }
+            
+            // Call original
+            if (window.__TAURI_IPC_ORIGINAL__.invoke) {
+              const response = await window.__TAURI_IPC_ORIGINAL__.invoke(cmd, args);
+              record.response = response;
+              record.duration = Date.now() - startTime;
+              window.__TAURI_IPC_HISTORY__.push(record);
+              return response;
+            }
+            
+            throw new Error('Tauri invoke not available');
+          } catch (error) {
+            record.error = error?.message || String(error);
+            record.duration = Date.now() - startTime;
+            window.__TAURI_IPC_HISTORY__.push(record);
+            throw error;
+          }
+        };
+        
+        // Replace invoke
+        if (window.__TAURI__) {
+          window.__TAURI__.invoke = interceptedInvoke;
+        }
+        if (window.__TAURI_INVOKE__) {
+          window.__TAURI_INVOKE__ = interceptedInvoke;
+        }
+        // Also patch tauri-api wrapper
+        if (window.tauriInvoke) {
+          window.tauriInvokeOriginal = window.tauriInvoke;
+          window.tauriInvoke = interceptedInvoke;
+        }
+      })()
+    `);
+    this.isSetup = true;
+  }
+  /**
+   * Remove interceptor and restore original functions
+   */
+  async teardown() {
+    if (!this.isSetup) return;
+    await this.test.evaluate(`
+      (() => {
+        if (window.__TAURI_IPC_ORIGINAL__) {
+          if (window.__TAURI__) {
+            window.__TAURI__.invoke = window.__TAURI_IPC_ORIGINAL__.invoke;
+          }
+          if (window.__TAURI_INVOKE__) {
+            window.__TAURI_INVOKE__ = window.__TAURI_IPC_ORIGINAL__.invoke;
+          }
+          if (window.tauriInvokeOriginal) {
+            window.tauriInvoke = window.tauriInvokeOriginal;
+          }
+        }
+        
+        window.__TAURI_IPC_MOCKS__ = {};
+        window.__TAURI_IPC_HISTORY__ = [];
+        window.__TAURI_EVENT_HISTORY__ = [];
+      })()
+    `);
+    this.isSetup = false;
+  }
+  /**
+   * Mock a Tauri command
+   */
+  async mock(command, config) {
+    await this.ensureSetup();
+    const handlerStr = config.handler ? `(${config.handler.toString()})` : "null";
+    await this.test.evaluate(`
+      (() => {
+        window.__TAURI_IPC_MOCKS__['${command}'] = {
+          response: ${JSON.stringify(config.response)},
+          error: ${config.error ? JSON.stringify(config.error) : "null"},
+          delay: ${config.delay || 0},
+          handler: ${handlerStr},
+          once: ${config.once || false},
+          matchArgs: ${config.matchArgs ? JSON.stringify(config.matchArgs) : "null"}
+        };
+      })()
+    `);
+  }
+  /**
+   * Remove a mock
+   */
+  async unmock(command) {
+    await this.test.evaluate(`
+      delete window.__TAURI_IPC_MOCKS__?.['${command}'];
+    `);
+  }
+  /**
+   * Clear all mocks
+   */
+  async clearMocks() {
+    await this.test.evaluate(`
+      window.__TAURI_IPC_MOCKS__ = {};
+    `);
+  }
+  /**
+   * Get invoke history
+   */
+  async getHistory(filter) {
+    const history = await this.test.evaluate(`
+      window.__TAURI_IPC_HISTORY__ || []
+    `);
+    if (filter?.command) {
+      return history.filter((r) => r.command === filter.command);
+    }
+    return history;
+  }
+  /**
+   * Clear invoke history
+   */
+  async clearHistory() {
+    await this.test.evaluate(`
+      window.__TAURI_IPC_HISTORY__ = [];
+    `);
+  }
+  /**
+   * Get the last invoke call
+   */
+  async getLastInvoke(command) {
+    const history = await this.getHistory(command ? { command } : void 0);
+    return history[history.length - 1] || null;
+  }
+  /**
+   * Wait for a command to be invoked
+   */
+  async waitForInvoke(command, options = {}) {
+    const { timeout = 1e4, matchArgs } = options;
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      const history = await this.getHistory({ command });
+      const match = history.find((record) => {
+        if (!matchArgs) return true;
+        return Object.entries(matchArgs).every(
+          ([key, value]) => JSON.stringify(record.args[key]) === JSON.stringify(value)
+        );
+      });
+      if (match) {
+        return match;
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error(`Timeout waiting for invoke: ${command}`);
+  }
+  /**
+   * Assert that a command was invoked
+   */
+  async assertInvoked(command, options = {}) {
+    const history = await this.getHistory({ command });
+    const count = history.length;
+    if (options.times !== void 0 && count !== options.times) {
+      throw new Error(
+        `Expected ${command} to be invoked ${options.times} times, but was invoked ${count} times`
+      );
+    }
+    if (options.atLeast !== void 0 && count < options.atLeast) {
+      throw new Error(
+        `Expected ${command} to be invoked at least ${options.atLeast} times, but was invoked ${count} times`
+      );
+    }
+    if (options.atMost !== void 0 && count > options.atMost) {
+      throw new Error(
+        `Expected ${command} to be invoked at most ${options.atMost} times, but was invoked ${count} times`
+      );
+    }
+  }
+  /**
+   * Assert that a command was invoked with specific arguments
+   */
+  async assertInvokedWith(command, expectedArgs) {
+    const history = await this.getHistory({ command });
+    const found = history.some(
+      (record) => Object.entries(expectedArgs).every(
+        ([key, value]) => JSON.stringify(record.args[key]) === JSON.stringify(value)
+      )
+    );
+    if (!found) {
+      const actualArgs = history.map((r) => r.args);
+      throw new Error(
+        `Expected ${command} to be invoked with ${JSON.stringify(expectedArgs)}, but was invoked with: ${JSON.stringify(actualArgs)}`
+      );
+    }
+  }
+  /**
+   * Assert that a command was not invoked
+   */
+  async assertNotInvoked(command) {
+    const history = await this.getHistory({ command });
+    if (history.length > 0) {
+      throw new Error(
+        `Expected ${command} to not be invoked, but was invoked ${history.length} times`
+      );
+    }
+  }
+  /**
+   * Emit a Tauri event (for testing event listeners)
+   */
+  async emit(event, payload) {
+    await this.test.evaluate(`
+      (() => {
+        // Record event
+        window.__TAURI_EVENT_HISTORY__ = window.__TAURI_EVENT_HISTORY__ || [];
+        window.__TAURI_EVENT_HISTORY__.push({
+          event: '${event}',
+          payload: ${JSON.stringify(payload)},
+          timestamp: Date.now()
+        });
+        
+        // Emit via Tauri event system
+        if (window.__TAURI__?.event?.emit) {
+          window.__TAURI__.event.emit('${event}', ${JSON.stringify(payload)});
+        }
+        
+        // Also dispatch as custom DOM event for fallback
+        window.dispatchEvent(new CustomEvent('tauri:${event}', {
+          detail: ${JSON.stringify(payload)}
+        }));
+      })()
+    `);
+  }
+  /**
+   * Get event history
+   */
+  async getEventHistory(filter) {
+    const history = await this.test.evaluate(`
+      window.__TAURI_EVENT_HISTORY__ || []
+    `);
+    if (filter?.event) {
+      return history.filter((r) => r.event === filter.event);
+    }
+    return history;
+  }
+  /**
+   * Create a mock for simulating project open
+   */
+  async mockOpenProject(projectInfo) {
+    await this.mock("open_project", {
+      response: projectInfo
+    });
+    await this.mock("get_index_status", {
+      response: { indexed: true, ...projectInfo }
+    });
+  }
+  /**
+   * Create a mock for simulating empty project (the bug case)
+   */
+  async mockEmptyProject(path5) {
+    await this.mock("open_project", {
+      response: {
+        path: path5,
+        files_count: 0,
+        functions_count: 0,
+        structs_count: 0
+      }
+    });
+  }
+  /**
+   * Create a mock for API error
+   */
+  async mockError(command, errorMessage) {
+    await this.mock(command, {
+      error: errorMessage
+    });
+  }
+  /**
+   * Create a mock with delay (for testing loading states)
+   */
+  async mockWithDelay(command, response, delayMs) {
+    await this.mock(command, {
+      response,
+      delay: delayMs
+    });
+  }
+  // Private methods
+  async ensureSetup() {
+    if (!this.isSetup) {
+      await this.setup();
+    }
+  }
+};
+
+// src/core/theme-tester.ts
+var ThemeTester = class {
+  test;
+  themeVariablePrefix;
+  constructor(test, options = {}) {
+    this.test = test;
+    this.themeVariablePrefix = options.variablePrefix || "";
+  }
+  /**
+   * Get current theme state
+   */
+  async getState() {
+    const state = await this.test.evaluate(`
+      (() => {
+        const root = document.documentElement;
+        const body = document.body;
+        
+        // Detect current theme from various sources
+        const dataTheme = root.getAttribute('data-theme') || body.getAttribute('data-theme');
+        const rootClass = root.className;
+        const bodyClass = body.className;
+        
+        // Check for common theme class patterns
+        let current = 'light';
+        if (dataTheme) {
+          current = dataTheme;
+        } else if (rootClass.includes('dark') || bodyClass.includes('dark')) {
+          current = 'dark';
+        } else if (rootClass.includes('light') || bodyClass.includes('light')) {
+          current = 'light';
+        }
+        
+        // Get system preference
+        const systemPreference = window.matchMedia('(prefers-color-scheme: dark)').matches 
+          ? 'dark' 
+          : 'light';
+        
+        // Check if using system theme
+        const isSystem = dataTheme === 'system' || 
+          (!dataTheme && !rootClass.includes('dark') && !rootClass.includes('light'));
+        
+        // Find available themes (from stylesheets or data attributes)
+        const available = ['light', 'dark'];
+        
+        return {
+          current,
+          available,
+          systemPreference,
+          isSystem,
+          rootClass,
+          dataTheme: dataTheme || undefined
+        };
+      })()
+    `);
+    return state;
+  }
+  /**
+   * Switch to a different theme
+   */
+  async switch(theme) {
+    await this.test.evaluate(`
+      (() => {
+        const root = document.documentElement;
+        const body = document.body;
+        
+        // Try various methods to switch theme
+        
+        // Method 1: data-theme attribute
+        root.setAttribute('data-theme', '${theme}');
+        
+        // Method 2: class name
+        root.classList.remove('light', 'dark', 'theme-light', 'theme-dark');
+        body.classList.remove('light', 'dark', 'theme-light', 'theme-dark');
+        
+        if ('${theme}' !== 'system') {
+          root.classList.add('${theme}');
+          body.classList.add('${theme}');
+        }
+        
+        // Method 3: localStorage (for persistence)
+        try {
+          localStorage.setItem('theme', '${theme}');
+        } catch (e) {}
+        
+        // Method 4: Dispatch event for React/Vue apps
+        window.dispatchEvent(new CustomEvent('theme-change', { 
+          detail: { theme: '${theme}' }
+        }));
+        
+        // For Jotai-based apps (FlowSight)
+        if (window.__JOTAI_SET_THEME__) {
+          window.__JOTAI_SET_THEME__('${theme}');
+        }
+      })()
+    `);
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  /**
+   * Toggle between light and dark
+   */
+  async toggle() {
+    const state = await this.getState();
+    const newTheme = state.current === "dark" ? "light" : "dark";
+    await this.switch(newTheme);
+    return newTheme;
+  }
+  /**
+   * Get a CSS variable value
+   */
+  async getVariable(name) {
+    const varName = name.startsWith("--") ? name : `--${name}`;
+    const result = await this.test.evaluate(`
+      (() => {
+        const root = document.documentElement;
+        const computed = getComputedStyle(root).getPropertyValue('${varName}').trim();
+        
+        // Try to get raw value from stylesheet
+        let rawValue;
+        for (const sheet of document.styleSheets) {
+          try {
+            for (const rule of sheet.cssRules) {
+              if (rule.selectorText === ':root' || rule.selectorText?.includes('html')) {
+                const value = rule.style?.getPropertyValue('${varName}');
+                if (value) {
+                  rawValue = value.trim();
+                  break;
+                }
+              }
+            }
+          } catch (e) {}
+        }
+        
+        return {
+          name: '${varName.replace("--", "")}',
+          value: computed,
+          rawValue: rawValue || computed
+        };
+      })()
+    `);
+    return result;
+  }
+  /**
+   * Get multiple CSS variables
+   */
+  async getVariables(names) {
+    const results = [];
+    for (const name of names) {
+      results.push(await this.getVariable(name));
+    }
+    return results;
+  }
+  /**
+   * Get all CSS variables with a prefix
+   */
+  async getAllVariables(prefix) {
+    const searchPrefix = prefix || this.themeVariablePrefix;
+    const variables = await this.test.evaluate(`
+      (() => {
+        const root = document.documentElement;
+        const computed = getComputedStyle(root);
+        const variables = [];
+        
+        for (let i = 0; i < computed.length; i++) {
+          const prop = computed[i];
+          if (prop.startsWith('--') && (!${JSON.stringify(searchPrefix)} || prop.includes(${JSON.stringify(searchPrefix)}))) {
+            variables.push({
+              name: prop.replace('--', ''),
+              value: computed.getPropertyValue(prop).trim()
+            });
+          }
+        }
+        
+        return variables;
+      })()
+    `);
+    return variables;
+  }
+  /**
+   * Parse a color value to ColorInfo
+   */
+  async parseColor(value) {
+    const result = await this.test.evaluate(`
+      (() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '${value}';
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+        
+        // Convert to hex
+        const hex = '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+        
+        // Convert to HSL
+        const r1 = r / 255, g1 = g / 255, b1 = b / 255;
+        const max = Math.max(r1, g1, b1), min = Math.min(r1, g1, b1);
+        let h, s, l = (max + min) / 2;
+        
+        if (max === min) {
+          h = s = 0;
+        } else {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          switch (max) {
+            case r1: h = ((g1 - b1) / d + (g1 < b1 ? 6 : 0)) / 6; break;
+            case g1: h = ((b1 - r1) / d + 2) / 6; break;
+            case b1: h = ((r1 - g1) / d + 4) / 6; break;
+          }
+        }
+        
+        // Calculate luminance
+        const luminance = 0.299 * r1 + 0.587 * g1 + 0.114 * b1;
+        
+        return {
+          hex,
+          rgb: { r, g, b },
+          hsl: { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) },
+          alpha: a / 255,
+          isDark: luminance < 0.5
+        };
+      })()
+    `);
+    return result;
+  }
+  /**
+   * Check contrast ratio between two colors
+   */
+  async checkContrast(foregroundVar, backgroundVar) {
+    const fg = await this.getVariable(foregroundVar);
+    const bg = await this.getVariable(backgroundVar);
+    const fgColor = await this.parseColor(fg.value);
+    const bgColor = await this.parseColor(bg.value);
+    const getLuminance = (rgb) => {
+      const [rs, gs, bs] = [rgb.r, rgb.g, rgb.b].map((c) => {
+        c = c / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+    };
+    const l1 = getLuminance(fgColor.rgb);
+    const l2 = getLuminance(bgColor.rgb);
+    const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    return {
+      ratio: Math.round(ratio * 100) / 100,
+      meetsAA: ratio >= 4.5,
+      meetsAAA: ratio >= 7,
+      meetsAALarge: ratio >= 3,
+      meetsAAALarge: ratio >= 4.5
+    };
+  }
+  /**
+   * Compare two themes
+   */
+  async compare(theme1, theme2) {
+    const currentState = await this.getState();
+    await this.switch(theme1);
+    const vars1 = await this.getAllVariables();
+    await this.switch(theme2);
+    const vars2 = await this.getAllVariables();
+    await this.switch(currentState.current);
+    const vars1Map = new Map(vars1.map((v) => [v.name, v.value]));
+    const vars2Map = new Map(vars2.map((v) => [v.name, v.value]));
+    const differences = [];
+    const same = [];
+    for (const [name, value1] of vars1Map) {
+      const value2 = vars2Map.get(name);
+      if (value2 && value1 !== value2) {
+        differences.push({
+          variable: name,
+          theme1Value: value1,
+          theme2Value: value2
+        });
+      } else if (value2 && value1 === value2) {
+        same.push({ variable: name, value: value1 });
+      }
+    }
+    return { differences, same };
+  }
+  /**
+   * Assert current theme
+   */
+  async assertCurrentTheme(expected) {
+    const state = await this.getState();
+    if (state.current !== expected) {
+      throw new Error(
+        `Expected theme to be "${expected}", but got "${state.current}"`
+      );
+    }
+  }
+  /**
+   * Assert CSS variable value
+   */
+  async assertVariable(name, expected) {
+    const variable = await this.getVariable(name);
+    const normalize = (v) => v.replace(/\s+/g, " ").trim().toLowerCase();
+    if (normalize(variable.value) !== normalize(expected)) {
+      throw new Error(
+        `Expected ${name} to be "${expected}", but got "${variable.value}"`
+      );
+    }
+  }
+  /**
+   * Assert color is dark/light
+   */
+  async assertColorIsDark(variableName) {
+    const variable = await this.getVariable(variableName);
+    const color = await this.parseColor(variable.value);
+    if (!color.isDark) {
+      throw new Error(
+        `Expected ${variableName} to be a dark color, but luminance is >= 0.5`
+      );
+    }
+  }
+  /**
+   * Assert color is light
+   */
+  async assertColorIsLight(variableName) {
+    const variable = await this.getVariable(variableName);
+    const color = await this.parseColor(variable.value);
+    if (color.isDark) {
+      throw new Error(
+        `Expected ${variableName} to be a light color, but luminance is < 0.5`
+      );
+    }
+  }
+  /**
+   * Assert contrast meets WCAG AA
+   */
+  async assertContrastAA(foregroundVar, backgroundVar) {
+    const contrast = await this.checkContrast(foregroundVar, backgroundVar);
+    if (!contrast.meetsAA) {
+      throw new Error(
+        `Contrast ratio ${contrast.ratio} does not meet WCAG AA (requires 4.5:1)`
+      );
+    }
+  }
+  /**
+   * Assert contrast meets WCAG AAA
+   */
+  async assertContrastAAA(foregroundVar, backgroundVar) {
+    const contrast = await this.checkContrast(foregroundVar, backgroundVar);
+    if (!contrast.meetsAAA) {
+      throw new Error(
+        `Contrast ratio ${contrast.ratio} does not meet WCAG AAA (requires 7:1)`
+      );
+    }
+  }
+  /**
+   * Take a theme screenshot for visual comparison
+   */
+  async captureTheme(theme, outputPath) {
+    const currentState = await this.getState();
+    await this.switch(theme);
+    await new Promise((r) => setTimeout(r, 500));
+    const screenshot = await this.test.screenshot(outputPath);
+    await this.switch(currentState.current);
+    return screenshot;
+  }
+};
+
 exports.A11yTester = A11yTester;
 exports.ARIA_ROLES = ARIA_ROLES;
 exports.AccessibilityTreeManager = AccessibilityTreeManager;
@@ -10045,12 +11501,16 @@ exports.InteractionTester = InteractionTester;
 exports.MonacoTester = MonacoTester;
 exports.NetworkInterceptor = NetworkInterceptor;
 exports.RefManager = RefManager;
+exports.ResizablePanelTester = ResizablePanelTester;
 exports.ScreenRecorder = ScreenRecorder;
 exports.Session = Session;
 exports.SessionManager = SessionManager;
+exports.StateValidator = StateValidator;
 exports.StreamServer = StreamServer;
 exports.TauriDialogTester = TauriDialogTester;
+exports.TauriIpcInterceptor = TauriIpcInterceptor;
 exports.TestRunner = TestRunner;
+exports.ThemeTester = ThemeTester;
 exports.TimelineTester = TimelineTester;
 exports.VirtualListTester = VirtualListTester;
 exports.VisualRegressionTester = VisualRegressionTester;
@@ -10059,7 +11519,9 @@ exports.WCAG_TAGS = WCAG_TAGS;
 exports.createA11yTester = createA11yTester;
 exports.createAccessibilityTreeManager = createAccessibilityTreeManager;
 exports.createDesktopTest = createDesktopTest;
+exports.createHorizontalPanelTester = createHorizontalPanelTester;
 exports.createInteractionTester = createInteractionTester;
+exports.createVerticalPanelTester = createVerticalPanelTester;
 exports.createVisualRegressionTester = createVisualRegressionTester;
 exports.ensureDaemon = ensureDaemon;
 exports.withDaemon = withDaemon;
