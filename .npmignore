@@ -1,0 +1,36 @@
+# Source files
+src/
+
+# Config files
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+
+# Development files
+.eslintrc
+.prettierrc
+*.log
+
+# Test files
+tests/
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Documentation source (keep compiled docs)
+# docs/
+
+# Examples (keep for reference)
+# examples/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
