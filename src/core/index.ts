@@ -226,3 +226,12 @@ export {
   type ThemeState,
   type ThemeComparison,
 } from './theme-tester.js';
+
+// VLM Visual Assertions
+export {
+  VLMAssertions,
+  createVLMAssertions,
+  type VLMAssertionResult,
+  type VLMIssue,
+  type VLMAssertionConfig,
+} from './vlm-assertions.js';
