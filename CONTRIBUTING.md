@@ -84,6 +84,29 @@ refactor: simplify cost tracking logic
 test: add tests for Python bridge
 ```
 
+### 6. Git Configuration (Required)
+
+Before committing, configure your Git identity:
+
+```bash
+git config user.name "DeskPilot"
+git config user.email ""
+```
+
+**Mandatory Rules:**
+- **DO NOT** expose real email addresses in commits
+- **DO NOT** add `Co-authored-by` lines (including Cursor/Claude/AI tools)
+- **DO NOT** use auto-generated emails like `@xxxxx.local`
+
+If you find commits with these issues, clean with:
+
+```bash
+pip3 install git-filter-repo
+git-filter-repo --message-callback 'return message.replace(b"Co-authored-by: Cursor <cursoragent@cursor.com>\n", b"")' --force
+git remote add origin git@github.com:TbusOS/DeskPilot.git
+git push origin --force --all
+```
+
 ## Pull Request Process
 
 1. Ensure your code builds: `npm run build`
