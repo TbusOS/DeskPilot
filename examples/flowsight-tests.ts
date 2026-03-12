@@ -14,6 +14,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { fileURLToPath } from 'url';
 
 import {
   DesktopTest,
@@ -22,6 +23,10 @@ import {
   type TestCase,
   type TestContext,
 } from '../src/index.js';
+
+// ES module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ============================================================================
 // Configuration

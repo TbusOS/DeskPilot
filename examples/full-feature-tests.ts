@@ -20,6 +20,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { fileURLToPath } from 'url';
 
 import {
   DesktopTest,
@@ -39,6 +40,10 @@ import { MonacoTester } from '../src/core/monaco-tester.js';
 import { ResizablePanelTester } from '../src/core/resizable-panel-tester.js';
 import { createVisualRegressionTester } from '../src/core/visual-regression.js';
 import { shouldUseAgentMode, detectAgentEnvironment } from '../src/vlm/cursor-bridge.js';
+
+// ES module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ============================================================================
 // 配置

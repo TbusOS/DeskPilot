@@ -17,6 +17,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { fileURLToPath } from 'url';
 
 import {
   DesktopTest,
@@ -32,6 +33,10 @@ import { ResizablePanelTester } from '../src/core/resizable-panel-tester.js';
 import { FlowTester } from '../src/core/flow-tester.js';
 import { TauriIpcInterceptor } from '../src/core/tauri-ipc-interceptor.js';
 import { shouldUseAgentMode, detectAgentEnvironment } from '../src/vlm/cursor-bridge.js';
+
+// ES module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ============================================================================
 // 配置

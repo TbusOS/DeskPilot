@@ -13,6 +13,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 import {
   DesktopTest,
@@ -21,6 +22,10 @@ import {
 
 import { VLMAssertions } from '../src/core/vlm-assertions.js';
 import { TauriIpcInterceptor } from '../src/core/tauri-ipc-interceptor.js';
+
+// ES module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ============================================================================
 // 配置
